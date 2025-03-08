@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: kanban-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-kanban_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend Node.js API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kanban-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-5000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-kanban_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_here}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      ENABLE_AI: ${ENABLE_AI:-true}
+      USE_MOCK_AI: ${USE_MOCK_AI:-false}
+      # Note: When running in Docker, this points to the host machine's LM Studio
+      # Use host.docker.internal to access host machine from Docker
+      LM_STUDIO_ENDPOINT: ${LM_STUDIO_ENDPOINT:-http://host.docker.internal:1234/v1}
+      LM_STUDIO_MODEL: ${LM_STUDIO_MODEL:-hermes-3-llama-3.1-8b}
+      LM_STUDIO_TEMPERATURE: ${LM_STUDIO_TEMPERATURE:-0.7}
+      LM_STUDIO_MAX_TOKENS: ${LM_STUDIO_MAX_TOKENS:--1}
+    ports:
+      - "${PORT:-5000}:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: unless-stopped
+    command: npm run dev
+
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kanban-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      REACT_APP_API_URL: ${API_URL:-http://localhost:5000/api}
+      CHOKIDAR_USEPOLLING: "true"
+    restart: unless-stopped
+    command: npm start
+
+volumes:
+  postgres-data:

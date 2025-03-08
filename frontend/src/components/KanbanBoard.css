@@ -1,0 +1,238 @@
+/* A wrapper that fills the screen or at least is big enough. */
+.kanban-wrapper {
+  position: relative;
+  min-height: 100vh; /* So we can see the panel slide out fully */
+}
+
+/* The main board that holds columns */
+.kanban-board {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  transition: margin-right 0.4s ease;
+  padding: 1rem;
+}
+
+/* When the AI panel is open, shift the board left by the panel's width (400px). */
+.kanban-board.panel-open {
+  margin-right: 400px;
+}
+
+/* Column styling */
+.kanban-column {
+  background-color: #f9fafc;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  /* optional margin if you want spacing from top: */
+  /* margin-top: 1rem; */
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  padding: 0.75rem;
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.2);
+}
+
+.column-header h2 {
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.task-count {
+  width: 2rem;
+  height: 2rem;
+  background-color: rgba(255,255,255,0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.task-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  position: relative;
+}
+
+.task-list.dragging-over {
+  background-color: #e3f0ff;
+  box-shadow: inset 0 0 0 2px #3498db;
+  animation: pulse 1.5s infinite;
+}
+
+/* Drag placeholder styling */
+[data-rbd-placeholder-context-id] {
+  opacity: 0.5 !important;
+  background-color: #e3f0ff !important;
+  border: 2px dashed #3498db !important;
+  border-radius: 6px !important;
+  margin-bottom: 1rem !important;
+}
+
+@keyframes pulse {
+  0% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
+  50% { box-shadow: inset 0 0 0 2px rgba(52,152,219,1); }
+  100% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
+}
+
+.task-item {
+  margin-bottom: 0.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: grab;
+}
+.task-item.dragging {
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 10px 15px rgba(0,0,0,0.15);
+  opacity: 0.9;
+  z-index: 100;
+  cursor: grabbing !important;
+}
+
+/* AI panel is fixed on the right edge, below the navbar => top: 60px */
+.ai-insight-panel {
+  position: fixed;
+  top: 68px; /* Adjust this to match your navbar height */
+  right: 0;
+  bottom: 0; /* full height except the top offset */
+  width: 0;  /* collapsed by default */
+  overflow: hidden;
+  background-color: #fff;
+  box-shadow: -2px 0 6px rgba(0,0,0,0.1);
+  transition: width 0.4s ease;
+  padding: 1rem; /* not visible if width=0, but needed when open */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000; /* ensure it's above main content but below a top navbar if that has higher z-index */
+}
+
+/* When open, expand to 400px */
+.ai-insight-panel.open {
+  width: 600px;
+}
+
+/* A small header inside the panel with a close button to the right */
+.insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.close-insights-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s ease;
+}
+.close-insights-btn:hover {
+  color: #333;
+}
+
+.ai-insight-panel h3 {
+  color: #9b59b6;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.insight-content {
+  flex: 1; /* let content fill the rest of the panel */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Progress bar example */
+.progress-bar-container {
+  position: relative;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  height: 14px;
+  width: 100%;
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  background-color: #2ecc71;
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.progress-bar-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  line-height: 14px;
+  color: #333;
+  font-weight: 600;
+}
+
+.insight-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #3498db;
+}
+
+.metric-label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.empty-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  border: 2px dashed #ccc;
+  border-radius: 6px;
+  color: #95a5a6;
+  margin-bottom: 1rem;
+}
+
+/* A bit of responsiveness for smaller screens */
+@media (max-width: 768px) {
+  .kanban-board.panel-open {
+    margin-right: 300px;
+  }
+  .ai-insight-panel.open {
+    width: 300px;
+  }
+}
