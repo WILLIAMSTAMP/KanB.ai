@@ -28,4 +28,7 @@ router.post('/query', aiController.processQuery);
 // Get AI suggestions for a new task
 router.post('/task-suggestions', aiController.getTaskSuggestions);
 
+// Process AI chat with task data
+router.post('/chat', aiController.processChat);
+
 module.exports = router;

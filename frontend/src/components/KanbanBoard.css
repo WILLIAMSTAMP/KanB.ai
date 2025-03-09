@@ -2,20 +2,171 @@
 .kanban-wrapper {
   position: relative;
   min-height: 100vh; /* So we can see the panel slide out fully */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Left navigation panel */
+.nav-panel {
+  position: fixed;
+  top: 68px; /* Match the top position of the AI panel */
+  left: 0;
+  bottom: 0;
+  width: 60px; /* Width when collapsed */
+  background-color: #ffffff;
+  color: #495057;
+  transition: width 0.3s ease, box-shadow 0.3s ease;
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+  border-right: 1px solid #e9ecef;
+}
+
+.nav-panel.expanded {
+  width: 220px; /* Width when expanded */
+  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.08);
+}
+
+.nav-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 0.9rem;
+  cursor: pointer;
+  z-index: 10;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  background-color: #f8f9fa;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.nav-toggle:hover {
+  background-color: #e9ecef;
+  color: #495057;
+  transform: scale(1.05);
+}
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  margin-top: 40px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108, 117, 125, 0.2) transparent;
+}
+
+.nav-items::-webkit-scrollbar {
+  width: 4px;
+}
+
+.nav-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-items::-webkit-scrollbar-thumb {
+  background-color: rgba(108, 117, 125, 0.2);
+  border-radius: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #495057;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+  position: relative;
+  overflow: visible;
+  margin: 2px 8px;
+  border-radius: 6px;
+}
+
+.nav-item:hover {
+  background-color: #f8f9fa;
+  color: #3498db;
+}
+
+.nav-item.active {
+  background-color: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  border-left-color: #3498db;
+  font-weight: 500;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+  margin-right: 15px;
+  transition: transform 0.2s ease;
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-10px);
+}
+
+.nav-panel.expanded .nav-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.nav-divider {
+  height: 1px;
+  background-color: #e9ecef;
+  margin: 10px 15px;
 }
 
 /* The main board that holds columns */
 .kanban-board {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  transition: margin-right 0.4s ease;
-  padding: 1rem;
+  gap: 1.25rem;
+  transition: margin-right 0.4s ease, width 0.4s ease, margin-left 0.3s ease;
+  padding: 1.5rem;
+  max-width: 2200px; /* Increased from 2000px */
+  width: 100%;
+  margin: 0 auto;
+  justify-content: center;
+  margin-left: 60px; /* Match the width of the collapsed nav panel */
+  margin-top: 10px; /* Add some space below the header */
+}
+
+.kanban-board.nav-expanded {
+  margin-left: 220px; /* Match the width of the expanded nav panel */
 }
 
 /* When the AI panel is open, shift the board left by the panel's width (400px). */
 .kanban-board.panel-open {
   margin-right: 400px;
+  width: calc(100% - 400px - 60px); /* Account for nav panel width */
+}
+
+.kanban-board.panel-open.nav-expanded {
+  width: calc(100% - 400px - 220px); /* Account for expanded nav panel width */
 }
 
 /* Column styling */
@@ -23,12 +174,34 @@
   background-color: #f9fafc;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  min-width: 250px;
+  width: 35%; /* Increased from 32% to accommodate larger cards */
+  flex: 1;
+  min-width: 420px; /* Increased from 400px */
   display: flex;
   flex-direction: column;
   min-height: 500px;
-  /* optional margin if you want spacing from top: */
-  /* margin-top: 1rem; */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Column color variations based on status */
+.kanban-column.todo {
+  background-color: rgba(52, 152, 219, 0.05);
+  border-color: rgba(52, 152, 219, 0.2);
+}
+
+.kanban-column.in_progress {
+  background-color: rgba(243, 156, 18, 0.05);
+  border-color: rgba(243, 156, 18, 0.2);
+}
+
+.kanban-column.review {
+  background-color: rgba(155, 89, 182, 0.05);
+  border-color: rgba(155, 89, 182, 0.2);
+}
+
+.kanban-column.done {
+  background-color: rgba(46, 204, 113, 0.05);
+  border-color: rgba(46, 204, 113, 0.2);
 }
 
 .column-header {
@@ -36,26 +209,26 @@
   align-items: center;
   justify-content: space-between;
   color: #fff;
-  padding: 0.75rem;
-  border-radius: 4px 4px 0 0;
-  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.2);
+  padding: 0.85rem 1.15rem; /* Increased from 0.75rem 1rem */
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .column-header h2 {
-  font-size: 1.2rem;
+  font-size: 1.35rem; /* Increased from 1.2rem */
   margin: 0;
   font-weight: 600;
 }
 
 .task-count {
-  width: 2rem;
-  height: 2rem;
+  width: 2.3rem; /* Increased from 2rem */
+  height: 2.3rem; /* Increased from 2rem */
   background-color: rgba(255,255,255,0.25);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.95rem; /* Increased from 0.85rem */
   font-weight: bold;
   color: #fff;
 }
@@ -64,13 +237,34 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.85rem;
+  padding: 1.25rem 1.25rem 1.5rem; /* Adjusted padding */
   position: relative;
+  overflow-y: auto;
+  max-height: calc(100vh - 150px);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f8fafc;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.task-list::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.task-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 8px;
+  border: 2px solid #f8fafc;
 }
 
 .task-list.dragging-over {
-  background-color: #e3f0ff;
+  background-color: rgba(52, 152, 219, 0.1);
   box-shadow: inset 0 0 0 2px #3498db;
   animation: pulse 1.5s infinite;
 }
@@ -91,10 +285,14 @@
 }
 
 .task-item {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: grab;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
 }
+
 .task-item.dragging {
   transform: rotate(2deg) scale(1.02);
   box-shadow: 0 10px 15px rgba(0,0,0,0.15);
@@ -114,7 +312,7 @@
   background-color: #fff;
   box-shadow: -2px 0 6px rgba(0,0,0,0.1);
   transition: width 0.4s ease;
-  padding: 1rem; /* not visible if width=0, but needed when open */
+  padding: 0; /* not visible if width=0 */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -123,7 +321,8 @@
 
 /* When open, expand to 400px */
 .ai-insight-panel.open {
-  width: 600px;
+  width: 400px;
+  padding: 1.5rem;
 }
 
 /* A small header inside the panel with a close button to the right */
@@ -131,9 +330,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid #eee;
-  padding-bottom: 0.5rem;
+  padding-bottom: 1rem;
 }
 
 .close-insights-btn {
@@ -144,9 +343,17 @@
   cursor: pointer;
   color: #999;
   transition: color 0.2s ease;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
+
 .close-insights-btn:hover {
   color: #333;
+  background-color: #f5f5f5;
 }
 
 .ai-insight-panel h3 {
@@ -155,21 +362,22 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 1.2rem;
 }
 
 .insight-content {
   flex: 1; /* let content fill the rest of the panel */
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 /* Progress bar example */
 .progress-bar-container {
   position: relative;
   background-color: #e9ecef;
-  border-radius: 6px;
-  height: 14px;
+  border-radius: 8px;
+  height: 16px;
   width: 100%;
   margin: 1rem 0;
   overflow: hidden;
@@ -187,7 +395,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.8rem;
-  line-height: 14px;
+  line-height: 16px;
   color: #333;
   font-weight: 600;
 }
@@ -197,12 +405,14 @@
   flex-wrap: wrap;
   gap: 2rem;
   margin-top: 1rem;
+  justify-content: space-between;
 }
 
 .metric {
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-width: 80px;
 }
 
 .metric-value {
@@ -214,6 +424,46 @@
 .metric-label {
   font-size: 0.9rem;
   color: #7f8c8d;
+  text-align: center;
+}
+
+.workflow-suggestions {
+  margin-top: 1rem;
+}
+
+.workflow-suggestions h4 {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.suggestions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.suggestion-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 3px solid #9b59b6;
+}
+
+.suggestion-card h3 {
+  font-size: 1rem;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.suggestion-card p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .empty-column {
@@ -222,17 +472,476 @@
   justify-content: center;
   height: 100px;
   border: 2px dashed #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #95a5a6;
   margin-bottom: 1rem;
 }
 
 /* A bit of responsiveness for smaller screens */
+@media (max-width: 1800px) {
+  .kanban-column {
+    width: 38%;
+    min-width: 400px;
+  }
+}
+
+@media (max-width: 1600px) {
+  .kanban-column {
+    width: 40%;
+    min-width: 380px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .kanban-column {
+    width: 45%;
+    min-width: 360px;
+  }
+  
+  .kanban-board {
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .kanban-board {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    gap: 1rem;
+  }
+  
+  .kanban-column {
+    width: 420px;
+    min-width: 420px;
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 768px) {
+  .nav-panel.expanded {
+    width: 200px;
+  }
+  
+  .kanban-board.nav-expanded {
+    margin-left: 200px;
+  }
+  
   .kanban-board.panel-open {
     margin-right: 300px;
+    width: calc(100% - 300px - 60px);
   }
+  
+  .kanban-board.panel-open.nav-expanded {
+    width: calc(100% - 300px - 200px);
+  }
+  
   .ai-insight-panel.open {
     width: 300px;
+  }
+  
+  .kanban-column {
+    width: 400px;
+    min-width: 400px;
+  }
+  
+  .kanban-board {
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .nav-panel {
+    width: 0;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+  }
+  
+  .nav-panel.expanded {
+    width: 250px;
+  }
+  
+  .kanban-board {
+    margin-left: 0;
+  }
+  
+  .kanban-board.nav-expanded {
+    margin-left: 0;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  
+  .kanban-board.panel-open {
+    margin-right: 0;
+    width: 100%;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  
+  .ai-insight-panel.open {
+    width: 100%;
+  }
+  
+  .kanban-column {
+    width: 360px;
+    min-width: 360px;
+  }
+}
+
+/* Celebration animation when all tasks are in Done column */
+.celebration-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2000;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.celebration-message {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  animation: messageAppear 0.5s ease forwards;
+  max-width: 500px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2001;
+}
+
+.celebration-message h2 {
+  font-size: 2rem;
+  color: #2ecc71;
+  margin-bottom: 1rem;
+}
+
+.celebration-message p {
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.celebration-message button {
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.celebration-message button:hover {
+  background-color: #27ae60;
+  transform: translateY(-2px);
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #f00;
+  opacity: 0;
+}
+
+@keyframes messageAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes confettiFall {
+  0% {
+    opacity: 1;
+    transform: translateY(-100vh) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotate(720deg);
+  }
+}
+
+/* Confetti colors */
+.confetti-red { background-color: #e74c3c; }
+.confetti-blue { background-color: #3498db; }
+.confetti-green { background-color: #2ecc71; }
+.confetti-yellow { background-color: #f1c40f; }
+.confetti-purple { background-color: #9b59b6; }
+.confetti-orange { background-color: #e67e22; }
+
+/* Confetti shapes */
+.confetti-circle { border-radius: 50%; }
+.confetti-rectangle { width: 8px; height: 16px; }
+.confetti-square { width: 12px; height: 12px; }
+
+/* Done column highlight animation */
+.kanban-column.done.all-complete {
+  animation: columnPulse 2s infinite;
+}
+
+@keyframes columnPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+  }
+}
+
+/* Tooltip styling */
+.nav-tooltip {
+  position: absolute;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(52, 73, 94, 0.95);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-weight: 400;
+  visibility: hidden;
+}
+
+.nav-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-style: solid;
+  border-color: transparent rgba(52, 73, 94, 0.95) transparent transparent;
+}
+
+/* Show tooltip on hover when panel is not expanded */
+.nav-panel:not(.expanded) .nav-item:hover .nav-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(5px);
+  visibility: visible;
+}
+
+/* AI Chat Feature */
+.ai-chat-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #9b59b6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  border: none;
+  font-size: 1.5rem;
+}
+
+.ai-chat-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+}
+
+.ai-chat-container {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 350px;
+  height: 500px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  transform-origin: bottom right;
+}
+
+.ai-chat-container.hidden {
+  transform: scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-chat-header {
+  background-color: #9b59b6;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
+}
+
+.ai-chat-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-chat-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.ai-chat-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.ai-chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: #f8f9fa;
+}
+
+.ai-chat-message {
+  max-width: 80%;
+  padding: 10px 15px;
+  border-radius: 18px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  position: relative;
+  white-space: pre-line;
+}
+
+.ai-message {
+  background-color: #f0f0f0;
+  color: #333;
+  align-self: flex-start;
+  border-bottom-left-radius: 5px;
+  text-align: left;
+}
+
+.user-message {
+  background-color: #9b59b6;
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 5px;
+  text-align: right;
+}
+
+.ai-chat-input-container {
+  padding: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 10px;
+}
+
+.ai-chat-input {
+  flex: 1;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.ai-chat-input:focus {
+  border-color: #9b59b6;
+}
+
+.ai-chat-send {
+  background-color: #9b59b6;
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ai-chat-send:hover {
+  background-color: #8e44ad;
+}
+
+.ai-chat-typing {
+  display: flex;
+  gap: 4px;
+  padding: 10px 15px;
+  background-color: #f0f0f0;
+  border-radius: 18px;
+  align-self: flex-start;
+  margin-top: 5px;
+  width: fit-content;
+}
+
+.ai-chat-typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #999;
+  border-radius: 50%;
+  animation: typingAnimation 1.4s infinite ease-in-out;
+}
+
+.ai-chat-typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.ai-chat-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ai-chat-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingAnimation {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-5px);
   }
 }

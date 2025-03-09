@@ -47,7 +47,9 @@ const TaskCard = ({ task, onEdit, onDelete }) => {
   
   // Get color for priority badge
   const getPriorityColor = (priority) => {
-    switch (priority) {
+    switch (priority?.toLowerCase()) {
+      case 'critical':
+        return '#c0392b';
       case 'high':
         return '#e74c3c';
       case 'medium':
@@ -60,7 +62,7 @@ const TaskCard = ({ task, onEdit, onDelete }) => {
   };
 
   return (
-    <div className={`task-card ${task.priority}`}>
+    <div className={`task-card ${task.priority?.toLowerCase()}`}>
       {/* Show AI suggestion indicator if task has recommendations */}
       {task.ai_recommendation && (
         <div
@@ -75,8 +77,7 @@ const TaskCard = ({ task, onEdit, onDelete }) => {
         <h3 className="task-title">{task.title}</h3>
         
         <span
-          className="priority-badge"
-          style={{ backgroundColor: getPriorityColor(task.priority) }}
+          className={`priority-badge ${task.priority?.toLowerCase()}`}
         >
           {task.priority}
         </span>

@@ -5,6 +5,7 @@
 const aiService = require('../services/ai.service');
 const db = require('../models');
 const User = db.User;             // Make sure this is correct path to your models
+const Task = db.Task;             // Make sure this is correct path to your models
 
 
 // Get AI-recommended task priorities
@@ -24,7 +25,22 @@ exports.getTaskPriorities = async (req, res) => {
 // Get workflow improvement suggestions
 exports.getWorkflowImprovements = async (req, res) => {
   try {
-    const improvements = await aiService.getWorkflowImprovements();
+    const tasks = await Task.findAll({
+      include: [
+        {
+          model: User,
+          as: 'assignee',
+          attributes: ['id', 'name', 'role']
+        }
+      ]
+    });
+
+    if (!tasks || tasks.length === 0) {
+      console.log('No tasks found for workflow improvements');
+      return res.json([]);
+    }
+
+    const improvements = await aiService.getWorkflowImprovements(tasks);
     res.json(improvements);
   } catch (error) {
     console.error('Error getting workflow improvements:', error);
@@ -68,7 +84,6 @@ exports.processQuery = async (req, res) => {
   try {
     console.log('=== AI QUERY REQUEST RECEIVED ===');
     console.log('Request body:', JSON.stringify(req.body));
-    console.log('Headers:', JSON.stringify(req.headers));
     
     const { query, taskId } = req.body;
     
@@ -79,30 +94,25 @@ exports.processQuery = async (req, res) => {
     
     console.log(`Processing AI query: "${query}"${taskId ? ` for task ${taskId}` : ''}`);
     
-    // This would normally call an AI model like DeepSeek-R1
-    // For simulation, we'll generate some responses based on the query
+    // Call the AI service to process the query
+    const result = await aiService.getLmStudioCustomQuery(query, taskId);
     
-    // let response = '';
-    // const queryLower = query.toLowerCase();
+    // Log the result for debugging
+    console.log('AI response result:', typeof result, JSON.stringify(result).substring(0, 200));
     
-    // if (queryLower.includes('priority')) {
-    //   response = 'Based on the task description and current project timeline, I recommend setting this as a high priority task. It appears to be on the critical path for several dependent tasks.';
-    // } else if (queryLower.includes('assign') || queryLower.includes('who')) {
-    //   response = 'Looking at the team workload and skills, Sarah Johnson would be the best fit for this task given her experience with similar tasks and current availability.';
-    // } else if (queryLower.includes('deadline') || queryLower.includes('how long') || queryLower.includes('time')) {
-    //   response = 'Based on historical data from similar tasks, this should take approximately 3-5 days to complete. I recommend setting a deadline for next Friday to allow sufficient time for testing and review.';
-    // } else if (queryLower.includes('break down') || queryLower.includes('subtask')) {
-    //   response = 'Yes, this task would benefit from being broken down. I suggest dividing it into: 1) Initial research (1 day), 2) Design phase (2 days), 3) Implementation (2-3 days), and 4) Testing & documentation (1-2 days).';
-    // } else {
-    //   response = 'I\'ve analyzed this task in the context of your project. It appears to be of medium complexity and should be assigned to a team member with UI/UX experience. The task is related to other design tasks in the pipeline, so coordination will be important for maintaining design consistency.';
-    // }
+    // If result is already an object with a response property, send it directly
+    if (result && typeof result === 'object') {
+      console.log(`Sending AI response (${typeof result})`);
+      res.json(result);
+    } else {
+      // Fallback for unexpected response format
+      console.log('Unexpected response format, wrapping in response object');
+      res.json({ 
+        response: typeof result === 'string' ? result : JSON.stringify(result) 
+      });
+    }
     
-    // Add a simulated delay before responding
-    setTimeout(() => {
-      console.log(`Sending AI response: "${response.substring(0, 100)}${response.length > 100 ? '...' : ''}"`);
-      res.json({ response });
-      console.log('=== AI QUERY RESPONSE SENT ===');
-    }, 1000);
+    console.log('=== AI QUERY RESPONSE SENT ===');
     
   } catch (error) {
     console.error('Error processing AI query:', error);
@@ -116,7 +126,8 @@ exports.processQuery = async (req, res) => {
 // Get AI suggestions for a new task
 exports.getTaskSuggestions = async (req, res) => {
   try {
-    console.log('=== AI TASK SUGGESTIONS (with real users) ===');
+    console.log('=== AI TASK SUGGESTIONS REQUEST RECEIVED ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     
     // Destructure the fields we need from request body:
     const {
@@ -125,18 +136,26 @@ exports.getTaskSuggestions = async (req, res) => {
       currentPriority,
       currentCategory,
       currentDeadline,
-      currentAssigneeName
+      currentAssigneeName,
+      userList
     } = req.body;
 
     // 1) Validate input
     if (!title && !description) {
+      console.log('Error: Title or description is required');
       return res.status(400).json({ message: 'Title or description is required' });
     }
 
-    // 2) Fetch real users from DB
-    const allUsers = await User.findAll({ attributes: ['id', 'name', 'role', 'skills'] });
-    // Convert them to plain objects if needed:
-    const userList = allUsers.map(u => u.get({ plain: true }));
+    // 2) Use provided userList or fetch real users from DB
+    let users = userList;
+    if (!users || !Array.isArray(users) || users.length === 0) {
+      console.log('No userList provided, fetching from database');
+      const allUsers = await User.findAll({ attributes: ['id', 'name', 'role', 'skills'] });
+      // Convert them to plain objects if needed:
+      users = allUsers.map(u => u.get({ plain: true }));
+    }
+    
+    console.log(`=== LLM: Updating suggestions for: "${title}" with real users ===`);
 
     // 3) Call the LLM function in the service
     const suggestions = await aiService.getLmStudioTaskUpdateSuggestionsWithUsers(
@@ -148,24 +167,78 @@ exports.getTaskSuggestions = async (req, res) => {
         currentDeadline: currentDeadline || '',
         currentAssigneeName: currentAssigneeName || ''
       },
-      userList
+      users
     );
 
-    // 4) If the AI suggests an assignee name that’s not in our userList, fallback
-    const foundUser = userList.find(u => u.name === suggestions.suggested_assignee);
-    if (!foundUser) {
-      suggestions.reasoning += `\n(Note: The AI suggested "${suggestions.suggested_assignee}", which doesn't match any real user. Keeping existing assignee.)`;
-      suggestions.suggested_assignee = currentAssigneeName || null;
+    console.log('AI suggestions generated:', JSON.stringify(suggestions, null, 2));
+
+    // 4) If the AI suggests an assignee name that's not in our userList, fallback
+    if (suggestions.suggested_assignee) {
+      const foundUser = users.find(u => u.name === suggestions.suggested_assignee);
+      if (!foundUser) {
+        console.log(`Warning: AI suggested "${suggestions.suggested_assignee}", which doesn't match any real user`);
+        suggestions.reasoning += `\n(Note: The AI suggested "${suggestions.suggested_assignee}", which doesn't match any real user. Keeping existing assignee.)`;
+        suggestions.suggested_assignee = currentAssigneeName || null;
+      }
     }
 
-    // 5) Return final suggestions
-    return res.json(suggestions);
-
+    // 5) Return the suggestions
+    return res.status(200).json(suggestions);
   } catch (error) {
-    console.error('Error generating AI suggestions for task:', error);
-    return res.status(500).json({
-      message: 'Error generating AI suggestions for task',
-      error: error.message
+    console.error('Error generating AI task suggestions:', error);
+    
+    // Return a fallback response with the current values
+    const fallback = {
+      priority: req.body.currentPriority || 'medium',
+      category: req.body.currentCategory || '',
+      deadline: req.body.currentDeadline || null,
+      suggested_assignee: req.body.currentAssigneeName || null,
+      reasoning: "Could not generate AI suggestions due to an error. Using current values as fallback."
+    };
+    
+    return res.status(200).json(fallback);
+  }
+};
+
+// Process AI chat with task data
+exports.processChat = async (req, res) => {
+  try {
+    console.log('=== AI CHAT REQUEST RECEIVED ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2).substring(0, 500) + '...');
+    
+    const { query, taskData } = req.body;
+    
+    if (!query) {
+      console.log('Error: Query is required');
+      return res.status(400).json({ message: 'Query is required' });
+    }
+    
+    if (!taskData) {
+      console.log('Error: Task data is required');
+      return res.status(400).json({ message: 'Task data is required' });
+    }
+    
+    // Check if this is an assignment recommendation query
+    const isAssignmentQuery = /assign|who should|best person|recommend user|who can/i.test(query);
+    
+    console.log(`Processing AI chat query: "${query}" with task data${isAssignmentQuery ? ' (Assignment recommendation requested)' : ''}`);
+    
+    // Call the AI service to process the chat query with task data
+    const result = await aiService.processTaskChat(query, taskData, isAssignmentQuery);
+    
+    // Log the result for debugging
+    console.log('AI chat response:', typeof result, JSON.stringify(result).substring(0, 200) + '...');
+    
+    res.json({ 
+      response: result 
+    });
+    
+    console.log('=== AI CHAT RESPONSE SENT ===');
+    
+  } catch (error) {
+    console.error('Error processing AI chat:', error);
+    res.status(500).json({ 
+      response: 'I encountered an error while analyzing your tasks. Please try again or ask a different question.'
     });
   }
 };

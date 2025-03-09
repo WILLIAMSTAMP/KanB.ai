@@ -59,6 +59,7 @@ const TaskForm = ({
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Input changed: ${name} = ${value}`);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -272,7 +273,9 @@ const TaskForm = ({
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
+              <option value="critical" className="critical-option" style={{color: 'red', fontWeight: 'bold'}}>CRITICAL</option>
             </select>
+            {console.log("Rendering priority dropdown with options:", ["low", "medium", "high", "critical"])}
           </div>
         </div>
         
@@ -285,7 +288,17 @@ const TaskForm = ({
               name="category"
               value={formData.category}
               onChange={handleChange}
+              list="category-suggestions"
+              autoComplete="off"
             />
+            <datalist id="category-suggestions">
+              <option value="Design" />
+              <option value="Development" />
+              <option value="Testing" />
+              <option value="Documentation" />
+              <option value="Research" />
+              <option value="Regulatory" />
+            </datalist>
           </div>
           
           <div className="form-group">
