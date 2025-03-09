@@ -1,4 +1,4 @@
-# AI-Enabled Kanban Board with DeepSeek-R1
+# AI-Enabled Kanban Board
 
 A modern Kanban board application enhanced with AI-powered features using DeepSeek-R1, an open-source large language model. This project demonstrates how AI can be integrated into project management workflows to provide intelligent suggestions, optimize processes, and improve team productivity.
 
