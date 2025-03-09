@@ -7,6 +7,8 @@ const Task = db.Task;
 const User = db.User;
 const TaskHistory = db.TaskHistory;
 const Op = db.Sequelize.Op;
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Create a new task
@@ -20,6 +22,19 @@ exports.create = async (req, res) => {
       return res.status(400).json({
         message: 'Task title is required'
       });
+    }
+
+    // Process file attachments if any
+    let fileAttachments = [];
+    if (req.files && req.files.length > 0) {
+      fileAttachments = req.files.map(file => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        path: file.path,
+        size: file.size,
+        mimetype: file.mimetype,
+        uploaded_at: new Date()
+      }));
     }
 
     // Create task object
@@ -36,7 +51,9 @@ exports.create = async (req, res) => {
       estimated_hours: req.body.estimated_hours || null,
       tags: req.body.tags || [],
       ai_suggestions: req.body.ai_suggestions || null,
-      ai_recommendation: req.body.ai_recommendation || null
+      ai_recommendation: req.body.ai_recommendation || null,
+      notes: req.body.notes || null,
+      file_attachments: fileAttachments
     };
 
     // Save Task in the database
@@ -52,18 +69,57 @@ exports.create = async (req, res) => {
       change_type: 'create'
     });
 
+    // If notes were provided, record in history
+    if (task.notes) {
+      await TaskHistory.create({
+        task_id: task.id,
+        field: 'notes',
+        old_value: null,
+        new_value: task.notes,
+        changed_by: req.user?.id || 1,
+        change_type: 'create'
+      });
+    }
+
+    // If files were attached, record in history
+    if (fileAttachments.length > 0) {
+      await TaskHistory.create({
+        task_id: task.id,
+        field: 'file_attachments',
+        old_value: null,
+        new_value: JSON.stringify(fileAttachments.map(f => f.originalname)),
+        changed_by: req.user?.id || 1,
+        change_type: 'create'
+      });
+    }
+
+    // Fetch the task with associations
+    const createdTask = await Task.findByPk(task.id, {
+      include: [
+        {
+          model: User,
+          as: 'assignee',
+          attributes: ['id', 'name', 'role', 'avatar_url']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name']
+        }
+      ]
+    });
+
     // Emit socket event for real-time updates
     const io = req.app.get('io');
     if (io) {
-      io.emit('task:created', task);
+      io.emit('task:created', createdTask);
     }
 
-    // Return the created task
-    res.status(201).json(task);
+    res.status(201).json(createdTask);
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({
-      message: 'Failed to create task',
+      message: 'Error creating task',
       error: process.env.NODE_ENV === 'production' ? null : error.message
     });
   }
@@ -252,46 +308,80 @@ exports.findOne = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const id = req.params.id;
-
-    // Find the task to update
+    
+    // Find the task
     const task = await Task.findByPk(id);
-
+    
     if (!task) {
       return res.status(404).json({
         message: `Task with id=${id} not found`
       });
     }
-
-    // Record changes for task history
-    const changedFields = [];
-    for (const [key, value] of Object.entries(req.body)) {
-      if (task[key] !== value && key !== 'updated_at') {
-        changedFields.push({
-          field: key,
-          old_value: task[key] != null ? String(task[key]) : null,
-          new_value: value != null ? String(value) : null
-        });
-      }
-    }
-
-    // Update the task
-    await task.update(req.body);
-
-    // Save task history records
-    if (changedFields.length > 0) {
-      await Promise.all(changedFields.map(change => {
-        return TaskHistory.create({
-          task_id: id,
-          field: change.field,
-          old_value: change.old_value,
-          new_value: change.new_value,
-          changed_by: req.user?.id || 1,
-          change_type: 'update'
-        });
+    
+    // Process file attachments if any
+    let fileAttachments = task.file_attachments || [];
+    if (req.files && req.files.length > 0) {
+      const newAttachments = req.files.map(file => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        path: file.path,
+        size: file.size,
+        mimetype: file.mimetype,
+        uploaded_at: new Date()
       }));
+      
+      // Combine existing and new attachments
+      fileAttachments = [...fileAttachments, ...newAttachments];
+      
+      // Record file attachment in history
+      await TaskHistory.create({
+        task_id: id,
+        field: 'file_attachments',
+        old_value: JSON.stringify(task.file_attachments || []),
+        new_value: JSON.stringify(newAttachments.map(f => f.originalname)),
+        changed_by: req.user?.id || 1,
+        change_type: 'update'
+      });
     }
-
-    // Get updated task with associations
+    
+    // Check if notes have changed
+    if (req.body.notes !== undefined && req.body.notes !== task.notes) {
+      await TaskHistory.create({
+        task_id: id,
+        field: 'notes',
+        old_value: task.notes || '',
+        new_value: req.body.notes || '',
+        changed_by: req.user?.id || 1,
+        change_type: 'update'
+      });
+    }
+    
+    // Update task with all fields
+    const updateData = {
+      title: req.body.title,
+      description: req.body.description,
+      status: req.body.status,
+      priority: req.body.priority,
+      category: req.body.category,
+      deadline: req.body.deadline,
+      assignee_id: req.body.assignee_id,
+      estimated_hours: req.body.estimated_hours,
+      tags: req.body.tags,
+      notes: req.body.notes,
+      file_attachments: fileAttachments
+    };
+    
+    // Remove undefined fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+    
+    // Update the task
+    await task.update(updateData);
+    
+    // Fetch the updated task with associations
     const updatedTask = await Task.findByPk(id, {
       include: [
         {
@@ -889,7 +979,7 @@ async function generateAIResponseForQuery(query, currentTask, boardContext) {
 
   // -- 5) General advice about the task --
   else {
-    // If we’re missing statusCounts, fallback to 0
+    // If we're missing statusCounts, fallback to 0
     const todoCount = boardContext.statusCounts['todo'] || 0;
     const taskPriority = currentTask.priority || 'medium';
 
@@ -898,3 +988,83 @@ async function generateAIResponseForQuery(query, currentTask, boardContext) {
 
   return response;
 }
+
+/**
+ * Delete a file attachment from a task
+ * @param {Object} req - Request with task ID and file ID
+ * @param {Object} res - Response object
+ */
+exports.deleteFileAttachment = async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const filename = req.params.filename;
+    
+    // Find the task
+    const task = await Task.findByPk(taskId);
+    
+    if (!task) {
+      return res.status(404).json({
+        message: `Task with id=${taskId} not found`
+      });
+    }
+    
+    // Check if task has file attachments
+    if (!task.file_attachments || !Array.isArray(task.file_attachments)) {
+      return res.status(404).json({
+        message: 'No file attachments found for this task'
+      });
+    }
+    
+    // Find the file attachment
+    const fileIndex = task.file_attachments.findIndex(file => file.filename === filename);
+    
+    if (fileIndex === -1) {
+      return res.status(404).json({
+        message: `File attachment ${filename} not found`
+      });
+    }
+    
+    const fileToRemove = task.file_attachments[fileIndex];
+    
+    // Remove the file from the filesystem
+    try {
+      const filePath = path.join(__dirname, '../../uploads', fileToRemove.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err) {
+      console.error('Error deleting file from filesystem:', err);
+      // Continue even if file deletion fails
+    }
+    
+    // Remove the file from the task's attachments
+    const updatedAttachments = [...task.file_attachments];
+    updatedAttachments.splice(fileIndex, 1);
+    
+    // Record file deletion in history
+    await TaskHistory.create({
+      task_id: taskId,
+      field: 'file_attachments',
+      old_value: JSON.stringify([fileToRemove.originalname]),
+      new_value: 'deleted',
+      changed_by: req.user?.id || 1,
+      change_type: 'delete'
+    });
+    
+    // Update the task
+    await task.update({
+      file_attachments: updatedAttachments
+    });
+    
+    res.status(200).json({
+      message: 'File attachment deleted successfully',
+      filename: fileToRemove.originalname
+    });
+  } catch (error) {
+    console.error(`Error deleting file attachment:`, error);
+    res.status(500).json({
+      message: 'Error deleting file attachment',
+      error: process.env.NODE_ENV === 'production' ? null : error.message
+    });
+  }
+};

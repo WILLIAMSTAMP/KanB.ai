@@ -11,15 +11,15 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000
+  timeout: 60000 // Increase timeout to 60 seconds for AI requests
 });
 
 // Add request interceptor to include auth token
 apiClient.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || 'mock-jwt-token-for-development';
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['x-access-token'] = token;
     }
     return config;
   },
@@ -58,10 +58,24 @@ const authService = {
 const taskService = {
   getAll: async () => {
     try {
+      console.log('Fetching all tasks from API...');
       const response = await apiClient.get('/tasks');
-      return response.data;
+      console.log('Tasks API response:', response);
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      } else {
+        console.warn('API returned non-array data for tasks:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
+      }
       // Return empty array instead of throwing to prevent UI crashes
       return [];
     }
@@ -149,21 +163,87 @@ const taskService = {
   
   getAiSuggestions: async (taskData) => {
     try {
+      console.log('Sending AI suggestions request:', JSON.stringify(taskData, null, 2));
       const response = await apiClient.post('/ai/task-suggestions', taskData);
-      return response;
+      console.log('AI suggestions response received:', JSON.stringify(response.data, null, 2));
+      return response.data; // Return the data property, not the entire response
     } catch (error) {
       console.error('Error getting AI suggestions:', error);
-      // Return a default response instead of throwing
-      return {
-        data: {
-          priority: taskData.title.toLowerCase().includes('urgent') ? 'high' : 'medium',
-          category: taskData.title.toLowerCase().includes('design') ? 'Design' : 'Development',
-          deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          reasoning: 'Generated locally due to API unavailability'
-        }
-      };
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      } else if (error.request) {
+        console.error('No response received from server');
+      } else {
+        console.error('Error setting up request:', error.message);
+      }
+      
+      // Rethrow the error to be handled by the caller
+      throw error;
     }
-  }
+  },
+  
+  findAll: () => apiClient.get('/tasks'),
+  findOne: id => apiClient.get(`/tasks/${id}`),
+  
+  create: (taskData, onUploadProgress) => {
+    // If taskData is already FormData, use it directly
+    if (taskData instanceof FormData) {
+      return apiClient.post('/tasks', taskData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress
+      });
+    }
+    
+    // Otherwise, convert to FormData
+    const formData = new FormData();
+    Object.keys(taskData).forEach(key => {
+      if (taskData[key] !== undefined && taskData[key] !== null) {
+        formData.append(key, taskData[key]);
+      }
+    });
+    
+    return apiClient.post('/tasks', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress
+    });
+  },
+  
+  update: (id, taskData, onUploadProgress) => {
+    // If taskData is already FormData, use it directly
+    if (taskData instanceof FormData) {
+      return apiClient.put(`/tasks/${id}`, taskData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress
+      });
+    }
+    
+    // Otherwise, convert to FormData
+    const formData = new FormData();
+    Object.keys(taskData).forEach(key => {
+      if (taskData[key] !== undefined && taskData[key] !== null) {
+        formData.append(key, taskData[key]);
+      }
+    });
+    
+    return apiClient.put(`/tasks/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress
+    });
+  },
+  
+  updateStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, { status }),
+  delete: id => apiClient.delete(`/tasks/${id}`),
+  getHistory: id => apiClient.get(`/tasks/${id}/history`),
+  deleteFile: (taskId, filename) => apiClient.delete(`/tasks/${taskId}/files/${filename}`)
 };
 
 // User services

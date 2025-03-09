@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../services/api.service';
 import './TaskModal.css';
 
@@ -25,18 +25,26 @@ const TaskModal = ({
     priority: 'medium',
     category: '',
     deadline: '',
-    assignee_id: ''
+    assignee_id: '',
+    notes: ''
   });
 
   // States for AI suggestions, custom queries, etc.
   const [aiSuggestions, setAiSuggestions] = useState(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [currentAssigneeName, setCurrentAssigneeName] = useState(null);
 
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
 
   const [activeTab, setActiveTab] = useState('details');
+  
+  // State for file uploads
+  const [files, setFiles] = useState([]);
+  const [existingFiles, setExistingFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
 
   // Populate formData if editing an existing task
   useEffect(() => {
@@ -48,12 +56,27 @@ const TaskModal = ({
         priority: task.priority || 'medium',
         category: task.category || '',
         deadline: task.deadline ? task.deadline.split('T')[0] : '',
-        assignee_id: task.assignee_id || task.assignee?.id || ''
+        assignee_id: task.assignee ? task.assignee.id : '',
+        notes: task.notes || ''
       });
+      
+      // Set existing files if any
+      if (task.file_attachments && Array.isArray(task.file_attachments)) {
+        setExistingFiles(task.file_attachments);
+      }
     }
   }, [task]);
 
-  // Handle input changes
+  // Update currentAssigneeName whenever assignee_id changes
+  useEffect(() => {
+    if (formData.assignee_id) {
+      const assigneeUser = safeUsers.find(u => String(u.id) === String(formData.assignee_id));
+      setCurrentAssigneeName(assigneeUser ? assigneeUser.name : null);
+    } else {
+      setCurrentAssigneeName(null);
+    }
+  }, [formData.assignee_id, safeUsers]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -62,168 +85,195 @@ const TaskModal = ({
     }));
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(prev => [...prev, ...selectedFiles]);
+  };
 
-    if (!formData.title.trim()) {
-      alert('Please enter a task title');
-      return;
-    }
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
+  const deleteExistingFile = async (filename) => {
     try {
-      setIsLoadingSuggestions(true);
-      const success = await onSave(formData);
-      if (!success) {
-        alert('Failed to save task. Please try again.');
-      }
+      if (!task || !task.id) return;
+      
+      await apiService.tasks.deleteFile(task.id, filename);
+      
+      // Update the existing files list
+      setExistingFiles(prev => prev.filter(file => file.filename !== filename));
     } catch (error) {
-      console.error('Error saving task:', error);
-      alert('An error occurred while saving the task. Please try again.');
-    } finally {
-      setIsLoadingSuggestions(false);
+      console.error('Error deleting file:', error);
+      alert('Failed to delete file. Please try again.');
     }
   };
 
-  // Get AI suggestions (priority, category, deadline, assignee)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Create FormData object for file uploads
+      const formDataObj = new FormData();
+      
+      // Add all form fields
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== undefined && formData[key] !== null) {
+          formDataObj.append(key, formData[key]);
+        }
+      });
+      
+      // Add files
+      files.forEach(file => {
+        formDataObj.append('files', file);
+      });
+      
+      // Create or update task
+      let savedTask;
+      
+      if (task && task.id) {
+        // Update existing task
+        savedTask = await apiService.tasks.update(task.id, formDataObj, updateProgress);
+      } else {
+        // Create new task
+        savedTask = await apiService.tasks.create(formDataObj, updateProgress);
+      }
+      
+      // Call the onSave callback with the saved task
+      onSave(savedTask);
+    } catch (error) {
+      console.error('Error saving task:', error);
+      alert('Failed to save task. Please try again.');
+    }
+  };
+  
+  const updateProgress = (progressEvent) => {
+    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+    setUploadProgress(percentCompleted);
+  };
+
   const handleGetSuggestions = async () => {
     if (!formData.title && !formData.description) {
-      alert('Please enter a title or description first.');
+      alert('Please enter a title or description first');
       return;
     }
-    try {
-      setIsLoadingSuggestions(true);
 
-      // We pass the current fields + the user list so the AI can see them
-      // For example, your getAiSuggestions function might do:
-      //    apiService.ai.getTaskUpdateSuggestions(formData, safeUsers)
-      // or similar.
+    setIsLoadingSuggestions(true);
+    console.log('Fetching AI suggestions for:', formData.title);
+
+    try {
+      // Call the AI suggestions endpoint
       const result = await getAiSuggestions({
         title: formData.title,
         description: formData.description,
         currentPriority: formData.priority,
         currentCategory: formData.category,
         currentDeadline: formData.deadline,
-        currentAssigneeId: formData.assignee_id,
+        currentAssigneeName,
         userList: safeUsers
       });
 
-      // result might be an axios response or plain object
-      const data = result.data || result;
-      setAiSuggestions(data);
+      console.log('AI suggestions result:', result);
+      
+      // Set the suggestions
+      setAiSuggestions(result);
     } catch (error) {
       console.error('Error getting AI suggestions:', error);
-      // fallback if the AI service is unavailable
+      
+      // Fallback response if API is unavailable
       setAiSuggestions({
-        priority: formData.priority,
-        category: formData.category,
-        deadline: formData.deadline,
-        suggested_assignee: formData.assignee_id,
-        reasoning: 'Could not reach AI service, fallback used.'
+        priority: formData.priority || 'medium',
+        category: formData.category || '',
+        deadline: formData.deadline || '',
+        suggested_assignee: currentAssigneeName,
+        reasoning: "Generated locally due to API unavailability. The AI service might be down or experiencing issues."
       });
+      
+      // Show a user-friendly error message
+      alert('Could not get AI suggestions. Using local fallback instead.');
     } finally {
       setIsLoadingSuggestions(false);
     }
   };
 
-  // Apply the AI suggestions to the form
-// Suppose you have a `safeUsers` array that looks like [{ id: 4, name: "Alice Brown", ... }, ...]
-// Make sure it's accessible in this scope (e.g., from props or a higher-level variable).
+  const applySuggestion = (field) => {
+    if (!aiSuggestions) return;
 
-const applySuggestion = (field) => {
-  if (!aiSuggestions) return;
-
-  switch (field) {
-    case 'all': {
-      // Convert each field as usual
-      // But for assignee, do name → user.id
-      setFormData((prev) => {
-        // Fallbacks
-        const newPriority = aiSuggestions.priority || prev.priority;
-        const newCategory = aiSuggestions.category || prev.category;
-        const newDeadline = aiSuggestions.deadline || prev.deadline;
-
-        // Convert LLM name → numeric ID
-        let newAssigneeId = prev.assignee_id;
+    switch (field) {
+      case 'priority':
+        if (aiSuggestions.priority) {
+          setFormData(prev => ({ ...prev, priority: aiSuggestions.priority }));
+        }
+        break;
+      case 'category':
+        if (aiSuggestions.category) {
+          setFormData(prev => ({ ...prev, category: aiSuggestions.category }));
+        }
+        break;
+      case 'deadline':
+        if (aiSuggestions.deadline) {
+          // Format the date as YYYY-MM-DD for the input field
+          const date = new Date(aiSuggestions.deadline);
+          const formattedDate = date.toISOString().split('T')[0];
+          setFormData(prev => ({ ...prev, deadline: formattedDate }));
+        }
+        break;
+      case 'assignee':
         if (aiSuggestions.suggested_assignee) {
-          const foundUser = safeUsers.find(
-            (u) => u.name === aiSuggestions.suggested_assignee
-          );
-          // If found, use the numeric ID; else keep the old one
-          if (foundUser) {
-            newAssigneeId = foundUser.id;
+          // Find the user ID by name
+          const user = safeUsers.find(u => u.name === aiSuggestions.suggested_assignee);
+          if (user) {
+            setFormData(prev => ({ ...prev, assignee_id: user.id }));
           }
         }
-
-        return {
-          ...prev,
-          priority: newPriority,
-          category: newCategory,
-          deadline: newDeadline,
-          assignee_id: newAssigneeId,
-        };
-      });
-      break;
+        break;
+      case 'all':
+        // Apply all suggestions at once
+        let updates = {};
+        
+        if (aiSuggestions.priority) {
+          updates.priority = aiSuggestions.priority;
+        }
+        
+        if (aiSuggestions.category) {
+          updates.category = aiSuggestions.category;
+        }
+        
+        if (aiSuggestions.deadline) {
+          const date = new Date(aiSuggestions.deadline);
+          updates.deadline = date.toISOString().split('T')[0];
+        }
+        
+        if (aiSuggestions.suggested_assignee) {
+          const user = safeUsers.find(u => u.name === aiSuggestions.suggested_assignee);
+          if (user) {
+            updates.assignee_id = user.id;
+          }
+        }
+        
+        setFormData(prev => ({ ...prev, ...updates }));
+        break;
+      default:
+        break;
     }
+  };
 
-    case 'priority':
-      setFormData((prev) => ({
-        ...prev,
-        priority: aiSuggestions.priority || prev.priority,
-      }));
-      break;
-
-    case 'category':
-      setFormData((prev) => ({
-        ...prev,
-        category: aiSuggestions.category || prev.category,
-      }));
-      break;
-
-    case 'deadline':
-      setFormData((prev) => ({
-        ...prev,
-        deadline: aiSuggestions.deadline || prev.deadline,
-      }));
-      break;
-
-    case 'assignee': {
-      // Convert LLM name → numeric ID
-      const suggestedName = aiSuggestions.suggested_assignee;
-      const foundUser = safeUsers.find((u) => u.name === suggestedName);
-
-      setFormData((prev) => ({
-        ...prev,
-        // If the LLM-suggested name doesn't match, keep the old ID
-        assignee_id: foundUser ? foundUser.id : prev.assignee_id,
-      }));
-      break;
-    }
-
-    default:
-      break;
-  }
-};
-
-
-  // Ask the AI a custom question about the task
   const askAI = async () => {
-    if (!aiPrompt) {
-      alert('Please enter a question first.');
+    if (!aiPrompt.trim()) {
+      alert('Please enter a question for the AI');
       return;
     }
+
+    setIsLoadingResponse(true);
+
     try {
-      setIsLoadingResponse(true);
-      // Example: call your custom AI query endpoint
-      const response = await apiService.ai.getQueryResponse(
-        aiPrompt,
-        task ? task.id : null
-      );
-      setAiResponse(response.data.response);
+      // Call the AI query endpoint
+      const response = await apiService.ai.query(aiPrompt, task?.id);
+      
+      // Set the response
+      setAiResponse(response.response || 'No response from AI');
     } catch (error) {
       console.error('Error getting AI response:', error);
-      // fallback
-      setAiResponse('Could not get AI response. Please try again.');
+      setAiResponse('Failed to get a response from the AI. Please try again.');
     } finally {
       setIsLoadingResponse(false);
     }
@@ -239,6 +289,12 @@ const applySuggestion = (field) => {
           onClick={() => setActiveTab('details')}
         >
           Task Details
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'notes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notes')}
+        >
+          Notes & Files
         </button>
         <button
           className={`tab-button ${activeTab === 'ai' ? 'active' : ''}`}
@@ -314,6 +370,7 @@ const applySuggestion = (field) => {
                 value={formData.category}
                 onChange={handleChange}
                 list="category-suggestions"
+                autoComplete="off"
               />
               <datalist id="category-suggestions">
                 <option value="Design" />
@@ -423,7 +480,16 @@ const applySuggestion = (field) => {
                     </button>
                   </div>
                 )}
+              </div>
 
+              {aiSuggestions.reasoning && (
+                <div className="suggestion-reasoning">
+                  <h4>Reasoning:</h4>
+                  <p>{aiSuggestions.reasoning}</p>
+                </div>
+              )}
+
+              <div className="suggestion-actions">
                 <button
                   type="button"
                   className="apply-all-btn"
@@ -431,135 +497,221 @@ const applySuggestion = (field) => {
                 >
                   Apply All Suggestions
                 </button>
+                
+                <button
+                  type="button"
+                  className="dismiss-btn"
+                  onClick={() => setAiSuggestions(null)}
+                >
+                  Dismiss
+                </button>
               </div>
-
-              {aiSuggestions.reasoning && (
-                <div className="ai-reasoning">
-                  <h4>AI Reasoning:</h4>
-                  <p>{aiSuggestions.reasoning}</p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Form Actions */}
           <div className="form-actions">
             <button
               type="button"
-              className="secondary-btn"
-              onClick={handleGetSuggestions}
-              disabled={isLoadingSuggestions}
+              className="cancel-btn"
+              onClick={onCancel}
             >
-              {isLoadingSuggestions ? 'Getting Suggestions...' : 'Get AI Suggestions'}
+              Cancel
             </button>
-
+            
             <div className="main-actions">
-              <button
-                type="button"
-                className="cancel-btn"
-                onClick={onCancel}
-              >
-                Cancel
-              </button>
+              {!aiSuggestions && (
+                <button
+                  type="button"
+                  className="get-suggestions-btn"
+                  onClick={handleGetSuggestions}
+                  disabled={isLoadingSuggestions}
+                >
+                  {isLoadingSuggestions ? (
+                    <>
+                      <span className="loading-spinner"></span>
+                      Getting suggestions...
+                    </>
+                  ) : (
+                    'Get AI Suggestions'
+                  )}
+                </button>
+              )}
+              
               <button
                 type="submit"
                 className="save-btn"
               >
-                {task ? 'Update Task' : 'Create Task'}
+                Save
               </button>
             </div>
           </div>
         </form>
-      ) : (
-        /* AI Assistant Tab */
-        <div className="ai-assistant-tab">
-          <h3>Ask AI Assistant</h3>
-          <p className="ai-assistant-help">
-            Ask questions about this task, get suggestions for prioritization,
-            deadlines, or assignment recommendations.
-          </p>
-
-          <div className="ai-prompt-section">
+      ) : activeTab === 'notes' ? (
+        <div className="notes-tab">
+          <div className="form-group">
+            <label htmlFor="notes">Notes</label>
             <textarea
-              className="ai-prompt-input"
-              placeholder="Ask a question about this task..."
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              rows="3"
+              id="notes"
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              rows="8"
+              placeholder="Add notes, comments, or additional details about this task..."
             />
+          </div>
+          
+          <div className="form-group">
+            <label>File Attachments</label>
+            <div className="file-upload-container">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                multiple
+                className="file-input"
+              />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => fileInputRef.current.click()}
+              >
+                Select Files
+              </button>
+              <span className="file-info">
+                {files.length > 0 ? `${files.length} file(s) selected` : 'No files selected'}
+              </span>
+            </div>
+            
+            {/* Display selected files */}
+            {files.length > 0 && (
+              <div className="selected-files">
+                <h4>Selected Files</h4>
+                <ul className="file-list">
+                  {files.map((file, index) => (
+                    <li key={`new-${index}`} className="file-item">
+                      <span className="file-name">{file.name}</span>
+                      <span className="file-size">({(file.size / 1024).toFixed(1)} KB)</span>
+                      <button
+                        type="button"
+                        className="remove-file-btn"
+                        onClick={() => removeFile(index)}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {/* Display existing files */}
+            {existingFiles.length > 0 && (
+              <div className="existing-files">
+                <h4>Existing Files</h4>
+                <ul className="file-list">
+                  {existingFiles.map((file, index) => (
+                    <li key={`existing-${index}`} className="file-item">
+                      <span className="file-name">{file.originalname}</span>
+                      <span className="file-size">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                      <button
+                        type="button"
+                        className="download-file-btn"
+                        onClick={() => window.open(`/uploads/${file.filename}`, '_blank')}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="remove-file-btn"
+                        onClick={() => deleteExistingFile(file.filename)}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="upload-progress">
+                <div 
+                  className="progress-bar" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+                <span className="progress-text">{uploadProgress}%</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="form-actions">
             <button
-              className="ask-ai-btn"
-              onClick={askAI}
-              disabled={isLoadingResponse}
+              type="button"
+              className="cancel-btn"
+              onClick={onCancel}
             >
-              {isLoadingResponse ? 'Thinking...' : 'Ask AI'}
+              Cancel
+            </button>
+            
+            <button
+              type="button"
+              className="save-btn"
+              onClick={handleSubmit}
+            >
+              Save
             </button>
           </div>
-
-          {aiResponse && (
-            <div className="ai-response">
-              <h4>AI Response:</h4>
-              <div className="response-content">
-                {aiResponse}
-              </div>
+        </div>
+      ) : (
+        <div className="ai-tab">
+          <div className="ai-chat">
+            <div className="ai-prompt">
+              <label htmlFor="ai-prompt">Ask AI about this task:</label>
+              <textarea
+                id="ai-prompt"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="E.g., What are the best practices for this type of task? How should I approach this?"
+                rows="3"
+              />
+              <button
+                type="button"
+                className="ask-ai-btn"
+                onClick={askAI}
+                disabled={isLoadingResponse}
+              >
+                {isLoadingResponse ? 'Loading...' : 'Ask AI'}
+              </button>
             </div>
-          )}
 
-          <div className="ai-assistant-examples">
-            <h4>Example Questions:</h4>
-            <ul>
-              <li>
-                <button
-                  className="example-question"
-                  onClick={() => setAiPrompt('What priority should this task have and why?')}
-                >
-                  What priority should this task have and why?
-                </button>
-              </li>
-              <li>
-                <button
-                  className="example-question"
-                  onClick={() => setAiPrompt('Who would be the best person to assign this to?')}
-                >
-                  Who would be the best person to assign this to?
-                </button>
-              </li>
-              <li>
-                <button
-                  className="example-question"
-                  onClick={() => setAiPrompt('How long will this task likely take to complete?')}
-                >
-                  How long will this task likely take to complete?
-                </button>
-              </li>
-              <li>
-                <button
-                  className="example-question"
-                  onClick={() => setAiPrompt('Should this task be broken down into smaller subtasks?')}
-                >
-                  Should this task be broken down into smaller subtasks?
-                </button>
-              </li>
-            </ul>
+            {aiResponse && (
+              <div className="ai-response">
+                <h4>AI Response:</h4>
+                <div className="response-content">
+                  {aiResponse}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="form-actions ai-tab-actions">
-            <div className="main-actions">
-              <button
-                type="button"
-                className="cancel-btn"
-                onClick={onCancel}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="save-btn"
-                onClick={handleSubmit}
-              >
-                {task ? 'Update Task' : 'Create Task'}
-              </button>
-            </div>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            
+            <button
+              type="button"
+              className="save-btn"
+              onClick={handleSubmit}
+            >
+              Save
+            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,31 @@
-# AI-Enabled Kanban Board with DeepSeek-R1
+<div align="center">
+  <svg width="300" height="120" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Kanban columns background -->
+    <rect x="20" y="20" width="50" height="60" rx="5" fill="#f0f8ff" stroke="#007ACC" stroke-width="1" />
+    <rect x="80" y="20" width="50" height="60" rx="5" fill="#fff8f0" stroke="#FFA500" stroke-width="1" />
+    <rect x="140" y="20" width="50" height="60" rx="5" fill="#f8f0ff" stroke="#800080" stroke-width="1" />
+    <rect x="200" y="20" width="50" height="60" rx="5" fill="#f0fff0" stroke="#008000" stroke-width="1" />
+    
+    <rect x="25" y="30" width="40" height="10" fill="#007ACC" rx="2" />
+    <rect x="85" y="30" width="40" height="10" fill="#FFA500" rx="2" />
+    <rect x="145" y="30" width="40" height="10" fill="#800080" rx="2" />
+    <rect x="205" y="30" width="40" height="10" fill="#008000" rx="2" />
+    
+    <rect x="25" y="45" width="40" height="10" fill="#007ACC" rx="2" />
+    <rect x="85" y="45" width="40" height="10" fill="#FFA500" rx="2" />
+    <rect x="145" y="45" width="40" height="10" fill="#800080" rx="2" />
+    
+    <rect x="25" y="60" width="40" height="10" fill="#007ACC" rx="2" />
+    <rect x="85" y="60" width="40" height="10" fill="#FFA500" rx="2" />
+    
+    <!-- Logo text -->
+    <text x="150" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333333">KanB.ai</text>
+  </svg>
+  
+  <h1>KanB.ai - AI-Enabled Kanban Board</h1>
+</div>
 
-A modern Kanban board application enhanced with AI-powered features using DeepSeek-R1, an open-source large language model. This project demonstrates how AI can be integrated into project management workflows to provide intelligent suggestions, optimize processes, and improve team productivity.
+A modern Kanban board application enhanced with AI-powered features using LM Studio and open-source large language models. This project demonstrates how AI can be integrated into project management workflows to provide intelligent suggestions, optimize processes, and improve team productivity.
 
 ## Features
 
@@ -34,7 +59,7 @@ A modern Kanban board application enhanced with AI-powered features using DeepSe
 - RESTful API design with structured routes and controllers
 
 ### AI Integration
-- Local deployment of DeepSeek-R1 (simulated in this demo)
+- Local deployment of LLMs using LM Studio
 - Custom prompt engineering for project management tasks
 - API endpoints for AI-powered suggestions and analysis
 
@@ -64,29 +89,30 @@ project/
 └── README.md                  # Project documentation
 ```
 
-## DeepSeek-R1 Integration
+## LM Studio Integration
 
-This project demonstrates how DeepSeek-R1, an open-source LLM released under MIT license, can be leveraged for enterprise applications while maintaining data privacy and security.
+This project demonstrates how open-source LLMs can be leveraged for enterprise applications while maintaining data privacy and security.
 
 Key integration points:
-- **Local Deployment**: DeepSeek-R1 can be hosted on-premises, ensuring sensitive project data never leaves your infrastructure
+- **Local Deployment**: LLMs are hosted locally using LM Studio, ensuring sensitive project data never leaves your infrastructure
 - **Task Analysis**: The model analyzes task descriptions to extract insights about priority, complexity, and relationships
 - **Chain-of-Thought Reasoning**: Carefully crafted prompts enable the model to explain its suggestions with detailed reasoning
-- **Fine-Tuning Potential**: The model could be fine-tuned on your organization's project history data to improve accuracy (not implemented in this demo)
+- **Customizable Models**: You can choose from various open-source models available in LM Studio based on your performance needs
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js (v14 or higher)
 - npm or yarn
-- PostgreSQL (optional - can run in demo mode without a database)
+- MySQL database
+- LM Studio (for AI features)
 
 ### Installation
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/kanban-ai.git
-cd kanban-ai
+git clone https://github.com/yourusername/kanb-ai.git
+cd kanb-ai
 ```
 
 2. Install backend dependencies
@@ -101,32 +127,78 @@ cd ../frontend
 npm install
 ```
 
-### Running the Application
-
-1. Start the backend server
+4. Set up the database
 ```bash
-cd backend
-npm start
+# Create a MySQL database named 'kanban_ai'
+# Update the .env file with your database credentials
 ```
 
-2. Start the frontend development server
+5. Set up LM Studio
+- Download and install LM Studio from [https://lmstudio.ai/](https://lmstudio.ai/)
+- Download a compatible model (recommended: hermes-3-llama-3.1-8b or similar)
+- Start the local server in LM Studio on the default port (1234)
+
+6. Configure the backend
+- Create a `.env` file in the backend directory with the following content:
+```
+DB_NAME=kanban_ai
+DB_USERNAME=your_db_username
+DB_PASSWORD=your_db_password
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DIALECT=mysql
+PORT=5004
+LM_STUDIO_MODEL=hermes-3-llama-3.1-8b
+
+ENABLE_AI=true
+USE_MOCK_AI=false
+
+NODE_ENV=development
+```
+
+### Running the Application
+
+1. Start LM Studio and ensure the local server is running
+
+2. Start the backend server
+```bash
+cd backend
+node server.js
+```
+
+3. Start the frontend development server
 ```bash
 cd frontend
 npm start
 ```
 
-3. Access the application at http://localhost:3000
+4. Access the application at http://localhost:3000
 
-### Demo Mode
+### Using the AI Features
 
-The application can run in demo mode without a database connection or AI model. In this mode, it uses mock data and simulated AI responses to demonstrate the functionality.
+1. **Task Suggestions**: When creating or editing a task, click the "Get AI Suggestions" button to receive AI-powered recommendations for priority, category, deadline, and assignee.
 
-## Future Enhancements
+2. **AI Assistant**: In the task modal, click the "AI Assistant" tab to ask questions about the task. Example questions:
+   - "What priority should this task have and why?"
+   - "Who would be the best person to assign this to?"
+   - "How long will this task likely take to complete?"
+   - "Should this task be broken down into smaller subtasks?"
 
-- **Advanced Analytics**: More detailed AI analysis of project timelines and team performance
-- **Automated Documentation**: Generate project documentation and reports based on task descriptions and history
-- **Risk Assessment**: Predictive analysis to identify potential project risks before they impact deadlines
-- **Fine-Tuned Model**: Deploy a version of DeepSeek-R1 fine-tuned on project management data for more accurate suggestions
+3. **Workflow Insights**: Click the "AI Insights" button in the top navigation to view AI-generated workflow improvement suggestions.
+
+4. **Task Priorities**: The system automatically analyzes tasks and suggests priority levels based on their descriptions and deadlines.
+
+### Troubleshooting
+
+- **AI Features Not Working**: Ensure LM Studio is running and the local server is active on port 1234
+- **Database Connection Issues**: Check your database credentials in the .env file
+- **Frontend Connection Issues**: Make sure the backend server is running on port 5004
+
+## Known Limitations
+
+- The LM Studio integration requires the model to return properly formatted JSON responses, which may not always happen with certain models
+- Some AI features may take time to respond depending on the size and complexity of the model you're using
+- The application is designed for demonstration purposes and may require additional security measures for production use
 
 ## License
 
@@ -134,5 +206,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- DeepSeek-R1 is an open-source large language model released by DeepSeek under MIT license
+- LM Studio for providing an easy way to run local LLMs
 - React Beautiful DnD for the drag-and-drop functionality
+- The open-source LLM community for making powerful AI models accessible
