@@ -186,58 +186,72 @@ const taskService = {
   findAll: () => apiClient.get('/tasks'),
   findOne: id => apiClient.get(`/tasks/${id}`),
   
-  create: (taskData, onUploadProgress) => {
-    // If taskData is already FormData, use it directly
-    if (taskData instanceof FormData) {
-      return apiClient.post('/tasks', taskData, {
+  create: async (taskData, onUploadProgress) => {
+    try {
+      // If taskData is already FormData, use it directly
+      if (taskData instanceof FormData) {
+        const response = await apiClient.post('/tasks', taskData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress
+        });
+        return response.data;
+      }
+      
+      // Otherwise, convert to FormData
+      const formData = new FormData();
+      Object.keys(taskData).forEach(key => {
+        if (taskData[key] !== undefined && taskData[key] !== null) {
+          formData.append(key, taskData[key]);
+        }
+      });
+      
+      const response = await apiClient.post('/tasks', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
         onUploadProgress
       });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
     }
-    
-    // Otherwise, convert to FormData
-    const formData = new FormData();
-    Object.keys(taskData).forEach(key => {
-      if (taskData[key] !== undefined && taskData[key] !== null) {
-        formData.append(key, taskData[key]);
-      }
-    });
-    
-    return apiClient.post('/tasks', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress
-    });
   },
   
-  update: (id, taskData, onUploadProgress) => {
-    // If taskData is already FormData, use it directly
-    if (taskData instanceof FormData) {
-      return apiClient.put(`/tasks/${id}`, taskData, {
+  update: async (id, taskData, onUploadProgress) => {
+    try {
+      // If taskData is already FormData, use it directly
+      if (taskData instanceof FormData) {
+        const response = await apiClient.put(`/tasks/${id}`, taskData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress
+        });
+        return response.data;
+      }
+      
+      // Otherwise, convert to FormData
+      const formData = new FormData();
+      Object.keys(taskData).forEach(key => {
+        if (taskData[key] !== undefined && taskData[key] !== null) {
+          formData.append(key, taskData[key]);
+        }
+      });
+      
+      const response = await apiClient.put(`/tasks/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
         onUploadProgress
       });
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating task ${id}:`, error);
+      throw error;
     }
-    
-    // Otherwise, convert to FormData
-    const formData = new FormData();
-    Object.keys(taskData).forEach(key => {
-      if (taskData[key] !== undefined && taskData[key] !== null) {
-        formData.append(key, taskData[key]);
-      }
-    });
-    
-    return apiClient.put(`/tasks/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress
-    });
   },
   
   updateStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, { status }),

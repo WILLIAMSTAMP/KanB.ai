@@ -1,0 +1,14 @@
+Field,Type,Null,Key,Default,Extra
+id,int,NO,PRI,NULL,auto_increment
+name,varchar(100),NO,,NULL,
+email,varchar(100),YES,,NULL,
+password,varchar(255),YES,,NULL,
+role,varchar(50),YES,,member,
+skills,text,YES,,NULL,
+current_workload,float,YES,,0,
+workload_capacity,float,YES,,8,
+avatar_url,varchar(255),YES,,NULL,
+is_active,tinyint(1),YES,,1,
+last_login,datetime,YES,,NULL,
+created_at,datetime,YES,,CURRENT_TIMESTAMP,DEFAULT_GENERATED
+updated_at,datetime,YES,,NULL,"on update CURRENT_TIMESTAMP"

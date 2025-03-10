@@ -26,16 +26,33 @@ const storage = multer.diskStorage({
 
 // Check file type
 const fileFilter = (req, file, cb) => {
+  console.log('File upload attempt:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    extension: path.extname(file.originalname).toLowerCase()
+  });
+
   // Accept common file types
   const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv|zip|rar/;
   
   // Check extension
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase().substring(1));
   
-  // Check mime type
-  const mimetype = allowedTypes.test(file.mimetype);
+  // Check mime type - be more lenient with text files
+  let mimetype = allowedTypes.test(file.mimetype);
   
-  if (extname && mimetype) {
+  // Special case for text files
+  if (file.mimetype === 'text/plain' && path.extname(file.originalname).toLowerCase() === '.txt') {
+    mimetype = true;
+  }
+  
+  console.log('File validation results:', {
+    extname: extname,
+    mimetype: mimetype,
+    allowed: extname || mimetype // Allow if either extension or mimetype matches
+  });
+  
+  if (extname || mimetype) { // Changed from AND to OR for more leniency
     return cb(null, true);
   } else {
     cb(new Error('File type not supported'));

@@ -3,9 +3,10 @@
   position: relative;
   min-height: 100vh; /* So we can see the panel slide out fully */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   width: 100%;
-  overflow-x: hidden;
+  overflow: hidden; /* Hide overflow at the wrapper level */
+  z-index: 1;
 }
 
 /* Left navigation panel */
@@ -142,48 +143,114 @@
 
 /* The main board that holds columns */
 .kanban-board {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
-  transition: margin-right 0.4s ease, width 0.4s ease, margin-left 0.3s ease;
-  padding: 1.5rem;
-  max-width: 2200px; /* Increased from 2000px */
-  width: 100%;
-  margin: 0 auto;
-  justify-content: center;
-  margin-left: 60px; /* Match the width of the collapsed nav panel */
-  margin-top: 10px; /* Add some space below the header */
+  gap: 1rem;
+  padding: 1rem;
+  min-height: calc(100vh - 68px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: calc(100% - 60px); /* Account for nav panel width */
+  margin-left: 60px; /* Match nav panel width */
+  transition: width 0.3s ease, margin-left 0.3s ease;
 }
 
+/* Remove the ::after pseudo-element as we're using padding instead */
+.kanban-board::after {
+  display: none;
+}
+
+/* Ensure the board has proper scrolling behavior */
+.kanban-board::-webkit-scrollbar {
+  height: 10px;
+  background-color: #f5f5f5;
+}
+
+.kanban-board::-webkit-scrollbar-thumb {
+  background-color: #c1c1c1;
+  border-radius: 4px;
+}
+
+.kanban-board::-webkit-scrollbar-track {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+/* When nav is expanded */
 .kanban-board.nav-expanded {
-  margin-left: 220px; /* Match the width of the expanded nav panel */
+  width: calc(100% - 240px); /* Account for expanded nav width */
+  margin-left: 240px; /* Match expanded nav width */
 }
 
-/* When the AI panel is open, shift the board left by the panel's width (400px). */
+/* When AI panel is open, adjust the width to make room */
 .kanban-board.panel-open {
-  margin-right: 400px;
-  width: calc(100% - 400px - 60px); /* Account for nav panel width */
+  width: calc(100% - 60px - 320px); /* Account for nav and panel */
+  padding-right: 1rem; /* Reduce right padding */
 }
 
+/* When both nav is expanded and AI panel is open */
 .kanban-board.panel-open.nav-expanded {
-  width: calc(100% - 400px - 220px); /* Account for expanded nav panel width */
+  width: calc(100% - 240px - 320px); /* Account for expanded nav and panel */
 }
 
 /* Column styling */
 .kanban-column {
+  flex: 0 0 auto;
+  min-width: 320px; /* Increased from 290px */
+  max-width: 320px; /* Increased from 290px */
   background-color: #f9fafc;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  width: 35%; /* Increased from 32% to accommodate larger cards */
-  flex: 1;
-  min-width: 420px; /* Increased from 400px */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  min-height: 500px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-height: auto;
+  max-height: calc(100vh - 120px);
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* First column should not have transform and should have proper spacing */
+.kanban-column:first-child {
+  transform: none;
+  margin-left: 0.5rem;
+}
+
+/* Last column should not have right margin */
+.kanban-column:last-child {
+  margin-right: 0;
+}
+
+/* Ensure columns have proper z-index stacking */
+.kanban-column:nth-child(1) { z-index: 5; }
+.kanban-column:nth-child(2) { z-index: 4; }
+.kanban-column:nth-child(3) { z-index: 3; }
+.kanban-column:nth-child(4) { z-index: 2; }
+.kanban-column:nth-child(5) { z-index: 1; }
+
+/* Fix for dragging items - ensure they appear above all columns */
+[data-rbd-draggable-context-id] {
+  z-index: 1000 !important; /* Higher than any column */
+}
+
+/* Ensure the drag placeholder is visible */
+[data-rbd-placeholder-context-id] {
+  opacity: 0.5 !important;
+  background-color: #e3f0ff !important;
+  border: 2px dashed #3498db !important;
+  border-radius: 6px !important;
+  margin-bottom: 1rem !important;
+  z-index: 999 !important; /* Just below dragged items but above columns */
 }
 
 /* Column color variations based on status */
+.kanban-column.backlog {
+  background-color: rgba(149, 165, 166, 0.05);
+  border-color: rgba(149, 165, 166, 0.2);
+}
+
 .kanban-column.todo {
   background-color: rgba(52, 152, 219, 0.05);
   border-color: rgba(52, 152, 219, 0.2);
@@ -209,58 +276,61 @@
   align-items: center;
   justify-content: space-between;
   color: #fff;
-  padding: 0.85rem 1.15rem; /* Increased from 0.75rem 1rem */
+  padding: 0.5rem 1rem; /* Further reduced padding */
   border-radius: 8px 8px 0 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 45px; /* Reduced from 48px for a smaller header */
 }
 
 .column-header h2 {
-  font-size: 1.35rem; /* Increased from 1.2rem */
+  font-size: 1.1rem; /* Reduced from 1.15rem */
   margin: 0;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-count {
-  width: 2.3rem; /* Increased from 2rem */
-  height: 2.3rem; /* Increased from 2rem */
-  background-color: rgba(255,255,255,0.25);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem; /* Increased from 0.85rem */
-  font-weight: bold;
-  color: #fff;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 0.15rem 0.5rem; /* Reduced padding */
+  font-size: 0.8rem; /* Reduced font size */
+  font-weight: 600;
+  min-width: 22px; /* Reduced from 24px */
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .task-list {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding: 1.25rem 1.25rem 1.5rem; /* Adjusted padding */
+  overflow-y: auto; /* Only show scrollbar when needed */
+  padding: 1rem 0.8rem; /* Adjusted padding for wider columns */
+  min-height: 50px; /* Reduced minimum height for empty columns */
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 0 0 8px 8px;
   position: relative;
-  overflow-y: auto;
-  max-height: calc(100vh - 150px);
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e0 #f8fafc;
-  box-sizing: border-box;
-  width: 100%;
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
+/* Hide scrollbar when not needed */
+.task-list:empty {
+  overflow-y: hidden;
+}
+
+/* Customize scrollbar for task lists */
 .task-list::-webkit-scrollbar {
   width: 8px;
 }
 
 .task-list::-webkit-scrollbar-track {
-  background: #f8fafc;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 0 0 8px 0;
 }
 
 .task-list::-webkit-scrollbar-thumb {
-  background-color: #cbd5e0;
-  border-radius: 8px;
-  border: 2px solid #f8fafc;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
 }
 
 .task-list.dragging-over {
@@ -269,323 +339,693 @@
   animation: pulse 1.5s infinite;
 }
 
-/* Drag placeholder styling */
-[data-rbd-placeholder-context-id] {
-  opacity: 0.5 !important;
-  background-color: #e3f0ff !important;
-  border: 2px dashed #3498db !important;
-  border-radius: 6px !important;
-  margin-bottom: 1rem !important;
-}
-
-@keyframes pulse {
-  0% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
-  50% { box-shadow: inset 0 0 0 2px rgba(52,152,219,1); }
-  100% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
-}
-
 .task-item {
-  margin-bottom: 0.6rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: grab;
   width: 100%;
-  box-sizing: border-box;
-  max-width: 100%;
+  margin-bottom: 1rem;
+  transition: transform 0.2s ease;
+  position: relative; /* Ensure position is set for z-index to work */
+}
+
+.task-item:last-child {
+  margin-bottom: 0;
 }
 
 .task-item.dragging {
   transform: rotate(2deg) scale(1.02);
-  box-shadow: 0 10px 15px rgba(0,0,0,0.15);
-  opacity: 0.9;
-  z-index: 100;
-  cursor: grabbing !important;
+  z-index: 1000; /* Ensure dragged items appear above everything */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); /* Enhanced shadow for better visibility */
 }
 
-/* AI panel is fixed on the right edge, below the navbar => top: 60px */
-.ai-insight-panel {
+/* Project Summary Widget */
+.project-summary-widget {
   position: fixed;
-  top: 68px; /* Adjust this to match your navbar height */
+  top: 68px;
   right: 0;
-  bottom: 0; /* full height except the top offset */
-  width: 0;  /* collapsed by default */
-  overflow: hidden;
-  background-color: #fff;
-  box-shadow: -2px 0 6px rgba(0,0,0,0.1);
-  transition: width 0.4s ease;
-  padding: 0; /* not visible if width=0 */
-  overflow-y: auto;
+  bottom: 0;
+  width: 340px; /* Reduced from 350px to give more space for columns */
+  background-color: #ffffff;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  border-left: 1px solid #e9ecef;
+  z-index: 900;
   display: flex;
   flex-direction: column;
-  z-index: 1000; /* ensure it's above main content but below a top navbar if that has higher z-index */
+  overflow-y: auto;
+  padding: 0;
+  box-sizing: border-box;
+  transform: translateX(0);
+  transition: transform 0.3s ease;
 }
 
-/* When open, expand to 400px */
-.ai-insight-panel.open {
-  width: 400px;
-  padding: 1.5rem;
-}
-
-/* A small header inside the panel with a close button to the right */
-.insight-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 1rem;
-}
-
-.close-insights-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  color: #999;
-  transition: color 0.2s ease;
-  width: 2rem;
-  height: 2rem;
+/* Add a toggle button for the project summary panel */
+.project-summary-toggle-desktop {
+  position: fixed;
+  top: 78px;
+  right: 350px; /* Adjusted to match new panel width */
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #3498db;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 901;
+  cursor: pointer;
+  transition: right 0.3s ease, transform 0.2s ease;
 }
 
-.close-insights-btn:hover {
-  color: #333;
-  background-color: #f5f5f5;
+/* Text label for the project summary toggle */
+.project-summary-toggle-desktop::before {
+  content: "Project Summary";
+  position: absolute;
+  right: 40px;
+  background-color: #3498db;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: translateX(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
 }
 
-.ai-insight-panel h3 {
-  color: #9b59b6;
-  margin: 0;
+/* Show the label on hover */
+.project-summary-toggle-desktop:hover::before {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.project-summary-toggle-desktop:hover {
+  transform: scale(1.1);
+}
+
+/* When the panel is closed, move the toggle button */
+.project-summary-widget.closed {
+  transform: translateX(100%);
+}
+
+.project-summary-widget.closed + .project-summary-toggle-desktop {
+  right: 10px;
+}
+
+.widget-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.2rem;
+  margin-bottom: 0;
+  padding: 1.25rem 1.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
 }
 
-.insight-content {
-  flex: 1; /* let content fill the rest of the panel */
+.widget-header h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.widget-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0;
+  padding: 1.75rem;
 }
 
-/* Progress bar example */
-.progress-bar-container {
-  position: relative;
-  background-color: #e9ecef;
-  border-radius: 8px;
+.summary-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.summary-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.summary-section h4 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Add icons to section headers */
+.summary-section h4::before {
+  content: '';
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 0.5rem;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.summary-section:nth-child(1) h4::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233498db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='20' x2='12' y2='10'%3E%3C/line%3E%3Cline x1='18' y1='20' x2='18' y2='4'%3E%3C/line%3E%3Cline x1='6' y1='20' x2='6' y2='16'%3E%3C/line%3E%3C/svg%3E");
+}
+
+.summary-section:nth-child(2) h4::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239b59b6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E");
+}
+
+.summary-section:nth-child(3) h4::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e74c3c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 11.08V12a10 10 0 1 1-5.93-9.14'%3E%3C/path%3E%3Cpolyline points='22 4 12 14.01 9 11.01'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.summary-section:nth-child(4) h4::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232ecc71' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.refresh-suggestions {
+  background: none;
+  border: none;
+  color: #3498db;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.refresh-suggestions:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.refresh-suggestions svg {
+  width: 16px;
   height: 16px;
-  width: 100%;
-  margin: 1rem 0;
+  margin-right: 4px;
+}
+
+.refresh-suggestions.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.refresh-suggestions.loading svg {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.stat-item {
+  flex: 1;
+  min-width: 80px;
+  text-align: center;
+  background-color: #f8f9fa;
+  padding: 1rem 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+/* Progress bar styles */
+.progress-bar-container {
+  height: 12px;
+  background-color: #f1f1f1;
+  border-radius: 6px;
+  margin: 0.5rem 0 1rem;
+  position: relative;
   overflow: hidden;
 }
 
 .progress-bar-fill {
-  background-color: #2ecc71;
   height: 100%;
-  transition: width 0.4s ease;
+  background-color: #3498db;
+  border-radius: 6px;
+  transition: width 0.5s ease;
 }
 
 .progress-bar-label {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.8rem;
-  line-height: 16px;
-  color: #333;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
   font-weight: 600;
+  color: #333;
+  text-shadow: 
+    0 0 2px #fff,
+    0 0 2px #fff,
+    0 0 2px #fff,
+    0 0 2px #fff;
 }
 
-.insight-metrics {
+/* Distribution chart styles */
+.distribution-chart {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-  margin-top: 1rem;
   justify-content: space-between;
+  align-items: flex-end;
+  height: 180px;
+  margin-top: 1.25rem;
+  padding: 0 1rem;
 }
 
-.metric {
+.chart-bar {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80px;
+  height: 100%;
+  position: relative;
 }
 
-.metric-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #3498db;
+.bar-fill {
+  width: 70%;
+  background-color: #6c757d;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
 }
 
-.metric-label {
-  font-size: 0.9rem;
-  color: #7f8c8d;
+.bar-label {
+  font-size: 0.7rem;
+  color: #6c757d;
+  margin-top: 0.5rem;
   text-align: center;
 }
 
-.workflow-suggestions {
+.bar-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #343a40;
+  margin-top: 0.25rem;
+}
+
+/* Priority list styles */
+.priority-list {
   margin-top: 1rem;
 }
 
-.workflow-suggestions h4 {
-  font-size: 1.1rem;
-  color: #333;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 0.5rem;
+.priority-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
 }
 
+.priority-item:last-child {
+  border-bottom: none;
+}
+
+.priority-label {
+  display: flex;
+  align-items: center;
+}
+
+.priority-label::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.priority-item.critical .priority-label::before {
+  background-color: #e74c3c;
+  box-shadow: 0 0 5px rgba(231, 76, 60, 0.5);
+}
+
+.priority-item.high .priority-label::before {
+  background-color: #e74c3c;
+}
+
+.priority-item.medium .priority-label::before {
+  background-color: #f39c12;
+}
+
+.priority-item.low .priority-label::before {
+  background-color: #27ae60;
+}
+
+.priority-value {
+  font-weight: 600;
+  color: #343a40;
+}
+
+/* Add styles for the suggestions container that was in the AI panel */
 .suggestions-container {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 .suggestion-card {
   background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 1rem;
-  border-left: 3px solid #9b59b6;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+  border-left: 3px solid #3498db;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.suggestion-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, transparent 50%, rgba(52, 152, 219, 0.1) 50%);
+  border-radius: 0 0 0 10px;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
 }
 
 .suggestion-card h3 {
-  font-size: 1rem;
-  margin-top: 0;
-  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: #333;
+  margin: 0 0 0.75rem 0;
+  padding: 0;
+  display: block;
 }
 
 .suggestion-card p {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #555;
-  margin: 0;
-  line-height: 1.4;
+  margin: 0 0 1rem 0;
+  padding: 0;
+  line-height: 1.5;
 }
 
-.empty-column {
+/* Star ratings styling */
+.impact-indicator {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 100px;
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  color: #95a5a6;
-  margin-bottom: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0,0,0,0.05);
 }
 
-/* A bit of responsiveness for smaller screens */
+.impact-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.impact-star {
+  color: #f1c40f; /* Yellow star color */
+  font-size: 1.1rem;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+
+.suggestion-card:hover .impact-star {
+  transform: scale(1.1);
+}
+
+.impact-star.empty {
+  color: #e0e0e0; /* Light gray for empty stars */
+}
+
+.impact-label {
+  font-size: 0.8rem;
+  color: #777;
+  margin-left: 10px;
+  font-style: italic;
+}
+
+/* Media queries for responsive layout */
 @media (max-width: 1800px) {
   .kanban-column {
-    width: 38%;
-    min-width: 400px;
+    min-width: 310px; /* Increased from 280px */
+    max-width: 310px; /* Increased from 280px */
   }
 }
 
 @media (max-width: 1600px) {
   .kanban-column {
-    width: 40%;
-    min-width: 380px;
+    min-width: 300px; /* Increased from 270px */
+    max-width: 300px; /* Increased from 270px */
+  }
+  
+  .kanban-board {
+    padding-left: 4rem; /* Increased from 3.5rem */
+  }
+  
+  .kanban-board::before {
+    margin-left: -3rem; /* Increased from -2.5rem */
+  }
+  
+  .project-summary-widget {
+    width: 330px; /* Reduced from 340px */
+  }
+  
+  .project-summary-toggle-desktop {
+    right: 340px; /* Adjusted to match new panel width */
+  }
+}
+
+@media (max-width: 1400px) {
+  .kanban-column {
+    min-width: 280px; /* Increased from 250px */
+    max-width: 280px; /* Increased from 250px */
+  }
+  
+  .kanban-board {
+    padding-left: 4.5rem; /* Increased from 4rem */
+  }
+  
+  .kanban-board::before {
+    margin-left: -3.5rem; /* Increased from -3rem */
+  }
+  
+  .project-summary-widget {
+    width: 310px; /* Reduced from 320px */
+  }
+  
+  .project-summary-toggle-desktop {
+    right: 320px; /* Adjusted to match new panel width */
   }
 }
 
 @media (max-width: 1200px) {
   .kanban-column {
-    width: 45%;
-    min-width: 360px;
+    min-width: 260px; /* Increased from 230px */
+    max-width: 260px; /* Increased from 230px */
   }
   
   .kanban-board {
-    gap: 1rem;
-    padding: 1.25rem;
+    padding-left: 5rem; /* Increased from 4.5rem */
+  }
+  
+  .kanban-board::before {
+    margin-left: -4rem; /* Increased from -3.5rem */
+  }
+  
+  .project-summary-widget {
+    width: 290px; /* Reduced from 300px */
+  }
+  
+  .project-summary-toggle-desktop {
+    right: 300px; /* Adjusted to match new panel width */
   }
 }
 
 @media (max-width: 992px) {
   .kanban-board {
+    flex-wrap: wrap;
     justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 1rem;
-    gap: 1rem;
+    padding: 1rem;
+    padding-left: 1rem; /* Reset padding on mobile */
+    overflow-x: visible;
+    width: calc(100% - 60px);
+    margin-right: 0;
+  }
+  
+  .kanban-board.nav-expanded {
+    width: calc(100% - 240px);
+    margin-right: 0;
+    padding-left: 1rem; /* Reset padding on mobile */
+  }
+  
+  .kanban-board::before {
+    display: none; /* Remove the spacer on mobile */
   }
   
   .kanban-column {
-    width: 420px;
-    min-width: 420px;
-    flex-shrink: 0;
+    min-width: 100%;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+    margin-right: 0;
+  }
+  
+  .project-summary-widget {
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    width: 100%;
+    height: 80%;
+    top: 20%;
+    z-index: 950;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  .project-summary-widget.mobile-open {
+    transform: translateY(0);
+  }
+  
+  .project-summary-widget.closed {
+    transform: translateY(100%);
+  }
+  
+  .project-summary-toggle-desktop {
+    display: none; /* Hide desktop toggle on mobile */
+  }
+  
+  .project-summary-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #3498db;
+    color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 960;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+  
+  .project-summary-toggle:hover {
+    transform: scale(1.05);
+    background-color: #2980b9;
+  }
+  
+  .widget-header {
+    padding: 1.5rem;
+    border-radius: 16px 16px 0 0;
+    background-color: #f8f9fa;
+  }
+  
+  .summary-stats {
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+  
+  .stat-item {
+    min-width: 40%;
+  margin-bottom: 1rem;
+}
+
+  .distribution-chart {
+    height: 120px;
   }
 }
 
 @media (max-width: 768px) {
   .nav-panel.expanded {
-    width: 200px;
+    width: 100%;
   }
   
   .kanban-board.nav-expanded {
-    margin-left: 200px;
-  }
-  
-  .kanban-board.panel-open {
-    margin-right: 300px;
-    width: calc(100% - 300px - 60px);
-  }
-  
-  .kanban-board.panel-open.nav-expanded {
-    width: calc(100% - 300px - 200px);
-  }
-  
-  .ai-insight-panel.open {
-    width: 300px;
-  }
-  
-  .kanban-column {
-    width: 400px;
-    min-width: 400px;
+    margin-left: 0;
+    width: 100%;
+    padding: 1rem;
+    margin-right: 0;
   }
   
   .kanban-board {
-    gap: 1rem;
+    margin-left: 0;
+    width: 100%;
     padding: 1rem;
+    margin-right: 0;
+  }
+  
+  .ai-insight-panel.open {
+    width: 100%;
+    position: fixed;
+    top: 68px;
+    height: calc(100vh - 68px);
+  }
+  
+  .kanban-column {
+    min-width: 100%;
+    flex: 0 0 100%;
+  }
+  
+  .kanban-board {
+    padding: 0.75rem;
+    gap: 0.75rem;
   }
 }
 
 @media (max-width: 576px) {
   .nav-panel {
-    width: 0;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-  }
-  
-  .nav-panel.expanded {
-    width: 250px;
+    width: 100%;
   }
   
   .kanban-board {
     margin-left: 0;
-  }
-  
-  .kanban-board.nav-expanded {
-    margin-left: 0;
-    opacity: 0.3;
-    pointer-events: none;
-  }
-  
-  .kanban-board.panel-open {
+    width: 100%;
+    padding: 0.75rem;
     margin-right: 0;
-    width: 100%;
-    opacity: 0.3;
-    pointer-events: none;
   }
   
-  .ai-insight-panel.open {
-    width: 100%;
+  .column-header {
+    padding: 0.5rem 0.75rem;
+    height: 45px;
   }
   
-  .kanban-column {
-    width: 360px;
-    min-width: 360px;
+  .column-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .task-list {
+    padding: 1rem;
   }
 }
 
@@ -744,11 +1184,57 @@
   visibility: visible;
 }
 
-/* AI Chat Feature */
-.ai-chat-button {
+/* AI Chat Feature with label */
+.ai-chat-wrapper {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  right: 20px; /* Position at the far right of the page */
+  display: flex;
+  align-items: center;
+  z-index: 1050;
+  transition: right 0.3s ease; /* Add transition for smooth movement */
+}
+
+/* When project summary is open, move the chat button to the left of it */
+.project-summary-widget:not(.closed) ~ .ai-chat-wrapper {
+  right: 360px; /* Position to the left of the project summary panel */
+}
+
+/* Adjust position for different screen sizes */
+@media (max-width: 1600px) {
+  .project-summary-widget:not(.closed) ~ .ai-chat-wrapper {
+    right: 350px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .project-summary-widget:not(.closed) ~ .ai-chat-wrapper {
+    right: 330px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .project-summary-widget:not(.closed) ~ .ai-chat-wrapper {
+    right: 310px;
+  }
+}
+
+/* Text label for the chat button */
+.ai-chat-label {
+  background-color: #9b59b6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px 0 0 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  margin-right: -10px; /* Overlap with the button */
+  z-index: 1049; /* Just below the button */
+  transition: all 0.3s ease;
+}
+
+/* The chat button itself */
+.ai-chat-button {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -760,14 +1246,77 @@
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
-  z-index: 1000;
   border: none;
-  font-size: 1.5rem;
+  overflow: hidden; /* Ensure content doesn't overflow the circle */
+  padding: 0; /* Remove any padding that might cause overflow */
+  position: relative;
+  z-index: 1050;
+}
+
+/* Style for the robot icon */
+.ai-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.ai-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: white;
+  stroke-width: 2;
+}
+
+/* Hide the text label by default */
+.ai-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .ai-chat-button:hover {
   transform: scale(1.05);
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+}
+
+.ai-chat-wrapper:hover .ai-chat-label {
+  transform: translateX(-5px);
+}
+
+/* Adjust position when AI panel is open */
+.kanban-board.panel-open ~ .ai-chat-wrapper {
+  right: 20px;
+}
+
+/* Adjust position for mobile */
+@media (max-width: 992px) {
+  .ai-chat-wrapper {
+    right: 20px;
+    bottom: 80px; /* Move up to avoid overlap with project summary toggle */
+  }
+  
+  .ai-chat-button {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .ai-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .ai-chat-label {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
 }
 
 .ai-chat-container {
@@ -945,3 +1494,83 @@
     transform: translateY(-5px);
   }
 }
+
+/* Adjust the starting position of the board content */
+.kanban-board::before {
+  content: '';
+  display: block;
+  min-width: 0;
+  height: 1px;
+  flex: 0 0 0;
+  margin-left: -2.5rem; /* Increased from -2rem */
+}
+
+.no-suggestions {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: #777;
+  font-style: italic;
+  border: 1px dashed #ddd;
+}
+
+/* Animation for when dragging over a column */
+@keyframes pulse {
+  0% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
+  50% { box-shadow: inset 0 0 0 2px rgba(52,152,219,1); }
+  100% { box-shadow: inset 0 0 0 2px rgba(52,152,219,0.5); }
+}
+
+/* Fix for React Beautiful DnD portal */
+body > div[data-rbd-portal] {
+  z-index: 1500 !important; /* Ensure portal is above everything */
+}
+
+/* Adjust position when project summary is closed */
+.project-summary-widget.closed ~ .ai-chat-button {
+  right: 20px;
+}
+
+/* When both the project summary is closed and the board has panel-open class */
+.kanban-board.panel-open ~ .project-summary-widget.closed ~ .ai-chat-button {
+  right: 20px;
+}
+
+/* Main Content Area */
+.main-content {
+  position: relative;
+  width: calc(100% - 60px);
+  margin-left: 60px;
+  transition: width 0.3s ease, margin-left 0.3s ease;
+  min-height: calc(100vh - 68px);
+  background-color: #f5f7fa;
+}
+
+.main-content.nav-expanded {
+  width: calc(100% - 220px);
+  margin-left: 220px;
+}
+
+/* Coming Soon Message */
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.coming-soon h2 {
+  color: #2c3e50;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.coming-soon p {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+}
+

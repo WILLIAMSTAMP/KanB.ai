@@ -1,0 +1,19 @@
+Field,Type,Null,Key,Default,Extra
+id,int,NO,PRI,NULL,auto_increment
+title,varchar(255),YES,,NULL,
+description,text,YES,,NULL,
+status,text,YES,,NULL,
+priority,text,YES,,NULL,
+category,varchar(100),YES,,NULL,
+deadline,datetime,YES,,NULL,
+assignee_id,int,YES,MUL,NULL,
+created_by,int,YES,MUL,NULL,
+estimated_hours,float,YES,,0,
+actual_hours,float,YES,,0,
+tags,text,YES,,NULL,
+ai_suggestions,text,YES,,NULL,
+ai_recommendation,text,YES,,NULL,
+created_at,datetime,YES,,CURRENT_TIMESTAMP,DEFAULT_GENERATED
+updated_at,datetime,YES,,NULL,"on update CURRENT_TIMESTAMP"
+notes,text,YES,,NULL,
+file_attachments,json,YES,,NULL,

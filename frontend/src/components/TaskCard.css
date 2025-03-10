@@ -1,28 +1,44 @@
 /* TaskCard.css - Styling for individual task cards */
 
 .task-card {
-  background-color: white;
+  background-color: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  padding: 1.25rem 1.25rem 1.45rem; /* Adjusted padding */
+  padding: 0.9rem 1rem 0.5rem; /* Reduced bottom padding */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1rem;
+  min-height: 130px; /* Reduced minimum height */
+  width: 99%;
+  margin-left: auto;
+  margin-right: auto;
   position: relative;
+  overflow: visible;
   transition: all 0.2s ease;
-  border-top: 3px solid #95a5a6; /* Default border color */
-  user-select: none; /* Prevent text selection during drag */
-  width: 100%;
+  border-left: 4px solid #e0e0e0;
   display: flex;
   flex-direction: column;
-  min-height: 170px;
-  margin-bottom: 0.85rem;
+  cursor: pointer;
   box-sizing: border-box;
-  max-width: 100%;
-  overflow: hidden; /* Prevent content from overflowing */
 }
 
 /* Add a subtle hover effect */
 .task-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
+}
+
+/* Ensure task cards are visible during drag operations */
+[data-rbd-drag-handle-draggable-id] .task-card {
+  transform: translate(0, 0); /* Reset any transforms */
+  backface-visibility: hidden; /* Prevent flickering in some browsers */
+  will-change: transform; /* Optimize for animations */
+}
+
+/* Style for when a card is being dragged */
+.task-card.is-dragging {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  opacity: 0.9;
+  transform: rotate(2deg) scale(1.02);
+  z-index: 1000;
 }
 
 /* Priority-based styling */
@@ -40,27 +56,29 @@
 
 /* Critical priority with glowing effect */
 .task-card.critical {
-  border-top-color: #c0392b;
+  border-left-color: #c0392b;
   box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
   position: relative;
   z-index: 2;
+  animation: criticalPulse 2s infinite ease-in-out;
 }
 
 .task-card.critical:hover {
   box-shadow: 0 0 20px rgba(231, 76, 60, 0.7);
-  transform: translateY(-3px);
+  animation: none;
 }
 
 /* Add pulsing glow animation for critical tasks */
 @keyframes criticalPulse {
   0% {
-    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
   }
   50% {
     box-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+    transform: translateY(-1px);
   }
   100% {
-    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
   }
 }
 
@@ -92,129 +110,114 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem; /* Reduced margin */
   width: 100%;
   box-sizing: border-box;
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.5rem; /* Reduced padding */
   border-bottom: 1px solid #f0f2f5;
 }
 
 .task-title {
-  font-size: 1.2rem; /* Slightly reduced from 1.25rem */
+  font-size: 1rem; /* Reduced font size */
   font-weight: 600;
-  margin: 0;
-  color: #2c3e50;
+  color: #333;
+  margin: 0 0 0.5rem 0; /* Reduced margin */
+  line-height: 1.3;
   word-break: break-word;
-  padding-right: 0.85rem;
-  flex: 1;
-  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: calc(100% - 75px); /* Make room for priority badge */
 }
 
 .priority-badge {
-  font-size: 0.8rem; /* Slightly reduced from 0.85rem */
+  font-size: 0.75rem; /* Reduced font size */
   font-weight: bold;
   text-transform: uppercase;
   color: white;
-  padding: 0.25rem 0.5rem; /* Slightly reduced padding */
+  padding: 0.2rem 0.4rem; /* Reduced padding */
   border-radius: 4px;
-  min-width: 65px; /* Slightly reduced from 70px */
+  min-width: 60px; /* Reduced width */
   text-align: center;
   flex-shrink: 0;
-  margin-left: 0.5rem; /* Slightly reduced from 0.6rem */
+  margin-left: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  align-self: flex-start; /* Align to top */
 }
 
 .task-description {
-  font-size: 0.95rem; /* Slightly reduced from 1rem */
-  color: #7f8c8d;
-  margin-bottom: 1rem;
+  font-size: 0.85rem; /* Reduced font size */
+  color: #555;
+  margin-bottom: 0.7rem; /* Reduced margin */
+  line-height: 1.4;
+  flex-grow: 1;
   word-break: break-word;
-  line-height: 1.5;
-  min-height: 3rem;
-  flex: 1;
-  overflow-wrap: break-word;
-  background-color: #f9fafc;
-  padding: 0.75rem;
-  border-radius: 6px;
-  border-left: 3px solid #e9ecef;
-  box-sizing: border-box;
-  width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .task-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-  margin-bottom: 0.8rem;
-  width: 100%;
-  box-sizing: border-box;
+  align-items: flex-start;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: auto;
+  gap: 0.25rem; /* Reduced gap between stacked items */
+  border-top: 1px solid #f0f0f0;
+  padding-top: 0.4rem; /* Reduced padding */
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 .task-footer {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f2f5;
-  width: 100%;
-  box-sizing: border-box;
+  align-items: flex-start;
+  margin-top: 0.7rem; /* Reduced margin */
+  font-size: 0.75rem; /* Reduced font size */
+  gap: 0.5rem; /* Add gap between stacked items */
 }
 
 .task-category {
   display: inline-block;
-  background-color: #f0f2f5;
-  padding: 0.25rem 0.6rem; /* Slightly reduced from 0.3rem 0.75rem */
-  border-radius: 20px;
-  color: #34495e;
+  padding: 0.2rem 0.4rem; /* Reduced padding */
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  color: #555;
+  font-size: 0.7rem; /* Reduced font size */
   font-weight: 500;
-  margin-bottom: 0.5rem;
-  max-width: 100%;
+  white-space: nowrap; /* Prevent wrapping */
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  max-width: calc(100% - 70px); /* Limit width */
 }
 
-.task-assignee {
+.task-assignee, .task-deadline-container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  background-color: #f8f9fa;
-  padding: 0.5rem 0.75rem; /* Slightly reduced from 0.6rem */
-  border-radius: 6px;
-  border-left: 3px solid #3498db;
-  box-sizing: border-box;
+  line-height: 1.4;
 }
 
 .meta-label {
-  color: #95a5a6;
   font-weight: 600;
-  margin-right: 0.3rem;
-  flex-shrink: 0;
+  color: #555;
+  margin-right: 0.5rem;
+  min-width: 65px; /* Fixed width for labels to align content */
+  display: inline-block;
 }
 
 .assignee-name {
+  color: #3498db;
   font-weight: 500;
-  color: #34495e;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.task-deadline-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  background-color: #f8f9fa;
-  padding: 0.5rem 0.75rem; /* Slightly reduced from 0.6rem */
-  border-radius: 6px;
-  border-left: 3px solid #f39c12;
-  box-sizing: border-box;
+  max-width: calc(100% - 70px); /* Allow text to truncate if too long */
 }
 
 .task-deadline {
@@ -234,19 +237,14 @@
 }
 
 .ai-recommendation {
-  background-color: rgba(155, 89, 182, 0.05);
+  margin-top: 0.7rem;
+  padding: 0.5rem;
+  background-color: rgba(52, 152, 219, 0.1);
   border-radius: 6px;
-  padding: 0.75rem; /* Slightly reduced from 0.8rem */
-  margin-top: 0.8rem;
-  border-left: 3px solid #9b59b6;
+  font-size: 0.75rem;
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  box-sizing: border-box;
-  width: 100%;
+  border-left: 3px solid #3498db;
 }
 
 .recommendation-text {
@@ -320,31 +318,174 @@
   height: 0.9rem;
 }
 
-/* Responsive adjustments */
-@media (max-width: 576px) {
+/* Media queries for responsive task cards */
+@media (max-width: 1600px) {
+  .task-card {
+    padding: 0.8rem 0.8rem 0.4rem; /* Reduced bottom padding */
+    min-height: 120px; /* Reduced minimum height */
+  }
+  
+  .task-title {
+    font-size: 0.95rem;
+    margin: 0 0 0.4rem 0;
+    max-width: calc(100% - 70px);
+  }
+  
+  .task-description {
+    font-size: 0.8rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .priority-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.35rem;
+    min-width: 55px;
+  }
+  
   .task-meta {
-    flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.25rem; /* Reduced gap */
+    padding-top: 0.4rem;
+  }
+  
+  .meta-label {
+    min-width: 60px; /* Reduced width */
+  }
+}
+
+@media (max-width: 1400px) {
+  .task-card {
+    padding: 0.7rem 0.7rem 0.4rem; /* Reduced bottom padding */
+    min-height: 110px; /* Reduced minimum height */
+  }
+  
+  .task-title {
+    font-size: 0.9rem;
+    margin: 0 0 0.3rem 0;
+    max-width: calc(100% - 65px);
+  }
+  
+  .task-description {
+    font-size: 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+  
+  .priority-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.3rem;
+    min-width: 50px;
+  }
+  
+  .task-meta {
+    gap: 0.2rem; /* Reduced gap */
+    padding-top: 0.35rem;
+  }
+  
+  .meta-label {
+    min-width: 55px; /* Reduced width */
+  }
+}
+
+@media (max-width: 1200px) {
+  .task-card {
+    padding: 0.6rem 0.7rem 0.4rem; /* Reduced bottom padding */
+    min-height: 100px; /* Reduced minimum height */
+  }
+  
+  .task-title {
+    font-size: 0.85rem;
+    -webkit-line-clamp: 1;
+    max-width: calc(100% - 60px);
+  }
+  
+  .task-description {
+    font-size: 0.7rem;
+    margin-bottom: 0.6rem;
+    -webkit-line-clamp: 2;
+  }
+  
+  .task-header {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.4rem;
+  }
+  
+  .task-meta {
+    gap: 0.2rem; /* Reduced gap */
+    padding-top: 0.3rem;
+  }
+  
+  .meta-label {
+    min-width: 50px; /* Reduced width */
+    font-size: 0.65rem; /* Smaller font */
+  }
+}
+
+@media (max-width: 992px) {
+  .task-card {
+    padding: 0.6rem 0.6rem 0.3rem; /* Reduced bottom padding */
+    min-height: 90px; /* Reduced minimum height */
+  }
+  
+  .task-title {
+    font-size: 0.8rem;
+    margin: 0 0 0.3rem 0;
+  }
+  
+  .task-description {
+    font-size: 0.7rem;
+    margin-bottom: 0.5rem;
+    -webkit-line-clamp: 2;
+  }
+  
+  .task-meta {
+    font-size: 0.7rem;
+    gap: 0.15rem; /* Reduced gap */
+    padding-top: 0.25rem;
+  }
+  
+  .task-footer {
+    margin-top: 0.4rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .task-card {
+    padding: 0.7rem 0.7rem 0.8rem;
+    min-height: 120px;
+  }
+  
+  .task-meta {
+    font-size: 0.7rem;
   }
   
   .task-header {
     flex-direction: column;
-    gap: 0.5rem;
+    align-items: flex-start;
   }
   
   .priority-badge {
-    align-self: flex-start;
-    margin-left: 0;
+    margin-top: 0.3rem;
+    font-size: 0.7rem;
   }
   
   .task-actions {
-    opacity: 1;
-    flex-direction: column;
-    gap: 0.5rem;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
   }
   
   .task-action-btn {
-    width: 100%;
-    justify-content: center;
+    width: 24px;
+    height: 24px;
   }
+}
+
+.task-list {
+  flex: 1;
+  overflow-y: auto; /* Only show scrollbar when needed */
+  padding: 0.8rem 0.5rem; /* Reduced padding to allow cards to be wider */
+  min-height: 50px; /* Reduced minimum height for empty columns */
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 0 0 8px 8px;
+  position: relative;
+  box-sizing: border-box; /* Include padding in width calculation */
 }

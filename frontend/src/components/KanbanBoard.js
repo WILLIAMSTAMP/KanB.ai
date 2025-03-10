@@ -2,19 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskCard from './TaskCard';
 import './KanbanBoard.css';
+import Settings from './Settings';
 
 /**
  * KanbanBoard Component
  * Displays tasks organized in columns by status with drag-and-drop functionality,
- * plus a slide-out AI Insights panel from the right edge of the window below the navbar.
+ * with a project summary panel that includes AI insights.
  *
  * Props:
  * - tasks: Array of tasks
  * - onStatusChange: Function(id, newStatus) => void
  * - onEditTask: Function(task) => void
  * - onDeleteTask: Function(id) => void
- * - showAiInsights: boolean to toggle the AI panel
- * - onToggleInsights: function to open/close the panel
  * - aiWorkflowImprovements: array of improvements
  */
 const KanbanBoard = ({
@@ -22,12 +21,19 @@ const KanbanBoard = ({
   onStatusChange,
   onEditTask,
   onDeleteTask,
-  showAiInsights,
-  onToggleInsights,
   aiWorkflowImprovements
 }) => {
   // State for navigation panel
   const [navExpanded, setNavExpanded] = useState(false);
+  
+  // State for project summary on mobile
+  const [showMobileSummary, setShowMobileSummary] = useState(false);
+  
+  // State for desktop project summary panel
+  const [showDesktopSummary, setShowDesktopSummary] = useState(true);
+  
+  // State for mobile view
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
   
   // State for celebration
   const [showCelebration, setShowCelebration] = useState(false);
@@ -43,57 +49,69 @@ const KanbanBoard = ({
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   
+  // State for randomized workflow improvements
+  const [randomSuggestions, setRandomSuggestions] = useState([]);
+  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
+  
+  // State for active tab
+  const [activeTab, setActiveTab] = useState('board');
+  
   // Toggle navigation panel expansion
   const toggleNav = () => {
     setNavExpanded(!navExpanded);
   };
-
-  // Handle DnD
-  const handleDragEnd = (result) => {
-    const { source, destination, draggableId } = result;
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) {
-      return;
-    }
-    const newStatus = destination.droppableId;
-    try {
-      const idPart = draggableId.split('-')[1];
-      const task = tasks.find(t => String(t.id) === String(idPart));
-      if (!task) {
-        console.error(`Could not find task with ID: ${idPart}`);
-        return;
-      }
-      onStatusChange(task.id, newStatus);
-    } catch (error) {
-      console.error('Error handling drag end:', error);
-    }
+  
+  // Toggle mobile project summary
+  const toggleMobileSummary = () => {
+    setShowMobileSummary(!showMobileSummary);
+  };
+  
+  // Toggle desktop project summary
+  const toggleDesktopSummary = () => {
+    setShowDesktopSummary(!showDesktopSummary);
   };
 
   // Group tasks by status
-  const getTasksByStatus = () => {
-    const statusMap = { todo: [], in_progress: [], review: [], done: [] };
-    const normalizeStatus = (s) => {
-      if (!s) return 'todo';
-      const lower = s.toLowerCase();
-      if (lower === 'to do' || lower === 'todo') return 'todo';
-      if (lower === 'in progress' || lower === 'inprogress') return 'in_progress';
-      return lower; // fallback for 'review', 'done', etc.
-    };
-    tasks.forEach(task => {
-      const norm = normalizeStatus(task.status);
-      if (statusMap[norm]) statusMap[norm].push(task);
-      else statusMap.todo.push(task);
-    });
-    return statusMap;
+  const tasksByStatus = {
+    backlog: tasks.filter(task => task.status === 'backlog'),
+    todo: tasks.filter(task => task.status === 'todo'),
+    in_progress: tasks.filter(task => task.status === 'in_progress'),
+    review: tasks.filter(task => task.status === 'review'),
+    done: tasks.filter(task => task.status === 'done')
   };
-  const tasksByStatus = getTasksByStatus();
 
   // Define columns
   const columns = [
-    { id: 'todo',         title: 'To Do',       color: '#3498db', tasks: tasksByStatus.todo },
-    { id: 'in_progress',  title: 'In Progress', color: '#f39c12', tasks: tasksByStatus.in_progress },
-    { id: 'review',       title: 'Review',      color: '#9b59b6', tasks: tasksByStatus.review },
-    { id: 'done',         title: 'Done',        color: '#2ecc71', tasks: tasksByStatus.done }
+    {
+      id: 'backlog',
+      title: 'Backlog',
+      color: '#95a5a6', // Gray color for backlog
+      tasks: tasksByStatus.backlog
+    },
+    {
+      id: 'todo',
+      title: 'To Do',
+      color: '#3498db', // Blue
+      tasks: tasksByStatus.todo
+    },
+    {
+      id: 'in_progress',
+      title: 'In Progress',
+      color: '#f39c12', // Orange
+      tasks: tasksByStatus.in_progress
+    },
+    {
+      id: 'review',
+      title: 'Review',
+      color: '#9b59b6', // Purple
+      tasks: tasksByStatus.review
+    },
+    {
+      id: 'done',
+      title: 'Done',
+      color: '#2ecc71', // Green
+      tasks: tasksByStatus.done
+    }
   ];
 
   // Compute metrics
@@ -603,7 +621,7 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
 
   // Navigation items
   const navItems = [
-    { id: 'board', icon: '📋', label: 'Board', active: true },
+    { id: 'board', icon: '📋', label: 'Board', active: activeTab === 'board' },
     { id: 'backlog', icon: '📝', label: 'Backlog' },
     { id: 'sprints', icon: '🏃', label: 'Sprints' },
     { id: 'reports', icon: '📊', label: 'Reports' },
@@ -612,9 +630,150 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
     { id: 'calendar', icon: '📅', label: 'Calendar' },
     { id: 'team', icon: '👥', label: 'Team' },
     { id: 'divider2', type: 'divider' },
-    { id: 'settings', icon: '⚙️', label: 'Settings' },
+    { id: 'settings', icon: '⚙️', label: 'Settings', active: activeTab === 'settings' },
     { id: 'help', icon: '❓', label: 'Help & Support' },
   ];
+
+  // Handle nav item click
+  const handleNavClick = (id) => {
+    setActiveTab(id);
+  };
+
+  // Handle drag end
+  const handleDragEnd = (result) => {
+    const { destination, source, draggableId } = result;
+    
+    // If there's no destination or the item is dropped back to its original position, do nothing
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+      return;
+    }
+    
+    // Get the task that was dragged
+    const task = tasks.find(t => t.id.toString() === draggableId);
+    
+    // Map droppableId to status
+    const statusMap = {
+      'backlog': 'backlog',
+      'todo': 'todo',
+      'in_progress': 'in_progress',
+      'review': 'review',
+      'done': 'done'
+    };
+    
+    // Get the new status
+    const newStatus = statusMap[destination.droppableId];
+    
+    // If the status has changed, update it
+    if (task.status !== newStatus) {
+      // Remove individual task celebration trigger - only keep the celebration for when all tasks are complete
+      // This is handled by the useEffect that checks allTasksComplete
+      
+      // Call the onStatusChange callback
+      onStatusChange(task.id, newStatus);
+    }
+  };
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 992);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Generate randomized workflow improvement suggestions
+  const generateRandomSuggestions = () => {
+    const suggestionTemplates = [
+      {
+        title: "Implement task time tracking",
+        description: "Add time tracking to better understand how long tasks take and improve future estimations.",
+        impact: 0.7
+      },
+      {
+        title: "Add task dependencies",
+        description: "Identify and mark dependencies between tasks to better visualize workflow bottlenecks.",
+        impact: 0.8
+      },
+      {
+        title: "Create task templates",
+        description: "Develop templates for common task types to speed up task creation and ensure consistency.",
+        impact: 0.6
+      },
+      {
+        title: "Implement daily standups",
+        description: "Schedule brief daily meetings to discuss progress and blockers, improving team coordination.",
+        impact: 0.9
+      },
+      {
+        title: "Add priority auto-sorting",
+        description: "Automatically sort tasks by priority within each column to focus on what matters most.",
+        impact: 0.75
+      },
+      {
+        title: "Set up automated reminders",
+        description: "Configure notifications for approaching deadlines to prevent tasks from becoming overdue.",
+        impact: 0.85
+      },
+      {
+        title: "Implement workload balancing",
+        description: "Distribute tasks more evenly among team members to prevent burnout and improve efficiency.",
+        impact: 0.95
+      },
+      {
+        title: "Add progress tracking",
+        description: "Implement percentage-based progress tracking for complex tasks to better visualize completion.",
+        impact: 0.7
+      },
+      {
+        title: "Create recurring tasks",
+        description: "Set up automation for recurring tasks to reduce manual creation and ensure consistency.",
+        impact: 0.65
+      },
+      {
+        title: "Implement task tagging",
+        description: "Add tags to tasks for better categorization and filtering capabilities.",
+        impact: 0.6
+      },
+      {
+        title: "Set up workflow automation",
+        description: "Automate status changes based on certain triggers to reduce manual updates.",
+        impact: 0.85
+      },
+      {
+        title: "Add time estimates",
+        description: "Include time estimates for each task to improve sprint planning and resource allocation.",
+        impact: 0.75
+      }
+    ];
+    
+    // Shuffle the array and take 3-5 random suggestions
+    const shuffled = [...suggestionTemplates].sort(() => 0.5 - Math.random());
+    const count = Math.floor(Math.random() * 3) + 3; // 3-5 suggestions
+    return shuffled.slice(0, count);
+  };
+  
+  // Generate new random suggestions when refreshing
+  const refreshSuggestions = () => {
+    setIsRefreshingSuggestions(true);
+    
+    // Simulate API call delay
+    setTimeout(() => {
+      setRandomSuggestions(generateRandomSuggestions());
+      setIsRefreshingSuggestions(false);
+    }, 800);
+  };
+  
+  // Initialize random suggestions on component mount
+  useEffect(() => {
+    setRandomSuggestions(generateRandomSuggestions());
+    
+    // Refresh suggestions every 5 minutes
+    const intervalId = setInterval(refreshSuggestions, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <div className="kanban-wrapper">
@@ -628,7 +787,11 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
             item.type === 'divider' ? (
               <div key={item.id} className="nav-divider"></div>
             ) : (
-              <div key={item.id} className={`nav-item ${item.active ? 'active' : ''}`}>
+              <div 
+                key={item.id} 
+                className={`nav-item ${item.active ? 'active' : ''}`}
+                onClick={() => handleNavClick(item.id)}
+              >
                 <span className="nav-icon">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>
                 <span className="nav-tooltip">{item.label}</span>
@@ -638,14 +801,17 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
         </div>
       </div>
 
+      {/* Main Content Area */}
+      <div className={`main-content ${navExpanded ? 'nav-expanded' : ''}`}>
+        {activeTab === 'board' ? (
       <DragDropContext onDragEnd={handleDragEnd}>
-        {/* The main board container. If the panel is open, we add a class to shift it left. */}
-        <div className={`kanban-board ${showAiInsights ? 'panel-open' : ''} ${navExpanded ? 'nav-expanded' : ''}`}>
+            {/* The main board container */}
+            <div className={`kanban-board ${navExpanded ? 'nav-expanded' : ''}`}>
           {columns.map(col => (
-            <div 
-              key={col.id} 
-              className={`kanban-column ${col.id} ${col.id === 'done' && allTasksComplete ? 'all-complete' : ''}`}
-            >
+                <div 
+                  key={col.id} 
+                  className={`kanban-column ${col.id} ${col.id === 'done' && allTasksComplete ? 'all-complete' : ''}`}
+                >
               <div className="column-header" style={{ backgroundColor: col.color }}>
                 <h2>{col.title}</h2>
                 <div className="task-count">{col.tasks.length}</div>
@@ -653,39 +819,24 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
               <Droppable droppableId={col.id}>
                 {(provided, snapshot) => (
                   <div
+                        className={`task-list ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
                     ref={provided.innerRef}
-                    className={`task-list ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
                     {...provided.droppableProps}
                   >
-                    {col.tasks.length > 0 ? (
-                      col.tasks.map((task, index) => (
-                        <Draggable
-                          key={`task-${task.id}`}
-                          draggableId={`task-${task.id}`}
-                          index={index}
-                        >
+                        {col.tasks.map((task, index) => (
+                          <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
                           {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              className={`task-item ${snapshot.isDragging ? 'dragging' : ''}`}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                            >
                               <TaskCard
                                 task={task}
-                                onEdit={() => onEditTask(task)}
-                                onDelete={() => onDeleteTask(task.id)}
+                                provided={provided}
+                                snapshot={snapshot}
+                                onEdit={onEditTask}
+                                onDelete={onDeleteTask}
                               />
-                            </div>
                           )}
                         </Draggable>
-                      ))
-                    ) : (
-                      <div className="empty-column">
-                        <p>No tasks yet</p>
-                      </div>
-                    )}
-                    {provided.placeholder}
+                        ))}
+                        {provided.placeholder}
                   </div>
                 )}
               </Droppable>
@@ -693,88 +844,202 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
           ))}
         </div>
       </DragDropContext>
+        ) : activeTab === 'settings' ? (
+          <Settings />
+        ) : (
+          <div className="coming-soon">
+            <h2>{navItems.find(item => item.id === activeTab)?.label} - Coming Soon</h2>
+            <p>This feature is under development.</p>
+          </div>
+        )}
+      </div>
 
-      {/* Slide-out AI Insights Panel (fixed to right edge, top=60px so it's below the navbar) */}
-      <div className={`ai-insight-panel ${showAiInsights ? 'open' : ''}`}>
-        <div className="insight-header">
-          <h3>
-            <span role="img" aria-label="AI">🤖</span> AI Workflow Insights
-          </h3>
-          {/* A small close button to hide the panel */}
-          <button className="close-insights-btn" onClick={onToggleInsights}>
-            ✕
-          </button>
+      {/* Project Summary Widget with integrated AI Insights */}
+      <div className={`project-summary-widget ${!showDesktopSummary ? 'closed' : ''} ${showMobileSummary ? 'mobile-open' : ''}`}>
+        <div className="widget-header">
+          <h3>Project Summary & AI Insights</h3>
         </div>
-
-        <div className="insight-content">
-          {/* Example progress bar */}
+        <div className="widget-content">
+          <div className="summary-section">
+            <h4>Progress</h4>
           <div className="progress-bar-container">
             <div
               className="progress-bar-fill"
               style={{ width: `${completionRate}%` }}
-            />
-            <span className="progress-bar-label">
-              {completionRate}% Complete
-            </span>
-          </div>
-
-          <div className="insight-metrics">
-            <div className="metric">
-              <span className="metric-value">{completionRate}%</span>
-              <span className="metric-label">Completion Rate</span>
+              ></div>
+              <span className="progress-bar-label">{completionRate}%</span>
             </div>
-            <div className="metric">
-              <span className="metric-value">{overdue}</span>
-              <span className="metric-label">Overdue Tasks</span>
-            </div>
-            <div className="metric">
-              <span className="metric-value">{highPriority}</span>
-              <span className="metric-label">High Priority</span>
-            </div>
-            <div className="metric">
-              <span className="metric-value">{total}</span>
-              <span className="metric-label">Total Tasks</span>
-            </div>
-          </div>
-
-          {aiWorkflowImprovements && aiWorkflowImprovements.length > 0 && (
-            <div className="workflow-suggestions">
-              <h4>Suggested Improvements:</h4>
-              <div className="suggestions-container">
-                {aiWorkflowImprovements.map(imp => (
-                  <div key={imp.id} className="suggestion-card">
-                    <h3>{imp.title}</h3>
-                    <p>{imp.description}</p>
-                  </div>
-                ))}
+            <div className="summary-stats">
+              <div className="stat-item">
+                <span className="stat-value">{total}</span>
+                <span className="stat-label">Total Tasks</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{doneCount}</span>
+                <span className="stat-label">Completed</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{overdue}</span>
+                <span className="stat-label">Overdue</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{highPriority}</span>
+                <span className="stat-label">High Priority</span>
               </div>
             </div>
-          )}
+          </div>
+          
+          <div className="summary-section">
+            <h4>Task Distribution</h4>
+            <div className="distribution-chart">
+              {columns.map(col => (
+                <div key={col.id} className="chart-bar">
+                  <div 
+                    className="bar-fill" 
+                    style={{ 
+                      height: `${total ? (col.tasks.length / total) * 100 : 0}%`,
+                      backgroundColor: col.color 
+                    }}
+                  ></div>
+                  <span className="bar-label">{col.title}</span>
+                  <span className="bar-value">{col.tasks.length}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="summary-section">
+            <h4>Priority Breakdown</h4>
+            <div className="priority-list">
+              <div className="priority-item critical">
+                <span className="priority-label">Critical</span>
+                <span className="priority-value">{tasks.filter(t => t.priority === 'critical').length}</span>
+              </div>
+              <div className="priority-item high">
+                <span className="priority-label">High</span>
+                <span className="priority-value">{tasks.filter(t => t.priority === 'high').length}</span>
+              </div>
+              <div className="priority-item medium">
+                <span className="priority-label">Medium</span>
+                <span className="priority-value">{tasks.filter(t => t.priority === 'medium').length}</span>
+              </div>
+              <div className="priority-item low">
+                <span className="priority-label">Low</span>
+                <span className="priority-value">{tasks.filter(t => t.priority === 'low').length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Integrated AI Workflow Suggestions */}
+          <div className="summary-section">
+            <h4>
+              AI Workflow Improvements
+              <button 
+                className={`refresh-suggestions ${isRefreshingSuggestions ? 'loading' : ''}`} 
+                onClick={refreshSuggestions} 
+                title="Generate new suggestions"
+                disabled={isRefreshingSuggestions}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 4v6h-6"></path>
+                  <path d="M1 20v-6h6"></path>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+                </svg>
+                {isRefreshingSuggestions ? 'Generating...' : 'Refresh'}
+              </button>
+            </h4>
+              <div className="suggestions-container">
+              {randomSuggestions.length > 0 ? (
+                randomSuggestions.map((improvement, index) => (
+                  <div key={index} className="suggestion-card">
+                    <h3>{improvement.title}</h3>
+                    <p>{improvement.description}</p>
+                    <div className="impact-indicator">
+                      <div className="impact-stars">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span 
+                            key={star} 
+                            className={`impact-star ${star <= Math.round(improvement.impact * 5) ? '' : 'empty'}`}
+                          >
+                            ★
+                          </span>
+                        ))}
+                      </div>
+                      <span className="impact-label">Impact Rating</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-suggestions">
+                  <p>Generating AI workflow suggestions...</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* AI Chat Button */}
-      <button className="ai-chat-button" onClick={() => setShowChat(!showChat)}>
-        🤖
-      </button>
+      {/* Desktop toggle button for project summary */}
+      <div className="project-summary-toggle-desktop" onClick={toggleDesktopSummary}>
+        {showDesktopSummary ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        )}
+      </div>
+
+      {/* Mobile toggle button for project summary */}
+      {isMobile && (
+        <div className="project-summary-toggle" onClick={toggleMobileSummary}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12H3M12 3v18"></path>
+          </svg>
+        </div>
+      )}
+
+      {/* AI Chat Button with Label */}
+      <div className="ai-chat-wrapper">
+        <div className="ai-chat-label">Chat Assistant</div>
+        <button 
+          className="ai-chat-button" 
+          onClick={() => setShowChat(!showChat)}
+          aria-label="Open AI Chat"
+        >
+          <span className="ai-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4" />
+              <line x1="8" y1="16" x2="8" y2="16" />
+              <line x1="16" y1="16" x2="16" y2="16" />
+              <path d="M9 20l3 2 3-2" />
+            </svg>
+          </span>
+          <span className="ai-label">AI Assistant</span>
+        </button>
+      </div>
 
       {/* AI Chat Container */}
       <div className={`ai-chat-container ${!showChat ? 'hidden' : ''}`}>
         <div className="ai-chat-header">
-          <h3><span>🤖</span> AI Assistant</h3>
-          <button className="ai-chat-close" onClick={() => setShowChat(false)}>✕</button>
+          <h3>AI Assistant</h3>
+          <button 
+            className="ai-chat-close" 
+            onClick={() => setShowChat(false)}
+            aria-label="Close AI Chat"
+          >×</button>
         </div>
-        
-        <div className="ai-chat-messages">
-          {chatMessages.map((message, index) => (
-            <div 
-              key={index} 
-              className={`ai-chat-message ${message.type === 'ai' ? 'ai-message' : 'user-message'}`}
-            >
-              {message.text}
-            </div>
-          ))}
-          
+        <div className="ai-chat-messages" ref={messagesEndRef}>
+          {chatMessages.map((msg, index) => (
+            <div key={index} className={`ai-chat-message ${msg.type}-message`}>
+              {msg.text}
+                  </div>
+                ))}
           {isTyping && (
             <div className="ai-chat-typing">
               <div className="ai-chat-typing-dot"></div>
@@ -782,10 +1047,7 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
               <div className="ai-chat-typing-dot"></div>
             </div>
           )}
-          
-          <div ref={messagesEndRef} />
         </div>
-        
         <div className="ai-chat-input-container">
           <input
             type="text"
@@ -794,43 +1056,52 @@ I can see all your tasks, their descriptions, priorities, deadlines, and which c
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isTyping}
           />
           <button 
             className="ai-chat-send" 
             onClick={handleSendMessage}
-            disabled={isTyping || !inputMessage.trim()}
+            aria-label="Send Message"
           >
-            ➤
+            <span>↑</span>
           </button>
         </div>
       </div>
 
-      {/* Celebration animation when all tasks are complete */}
+      {/* Celebration overlay */}
       {showCelebration && (
         <div className="celebration-container">
-          {/* Confetti animation */}
-          {confetti.map(piece => (
+          {confetti.map(conf => (
             <div
-              key={piece.id}
-              className={`confetti confetti-${piece.color} confetti-${piece.shape}`}
+              key={conf.id}
+              className={`confetti confetti-${conf.color} confetti-${conf.shape}`}
               style={{
-                left: `${piece.left}%`,
-                width: piece.shape === 'rectangle' ? '8px' : `${piece.size}px`,
-                height: piece.shape === 'rectangle' ? '16px' : `${piece.size}px`,
-                animation: `confettiFall ${piece.duration}s ease-in ${piece.delay}s forwards`
+                left: `${conf.left}%`,
+                width: `${conf.size}px`,
+                height: `${conf.size}px`,
+                animationDuration: `${conf.duration}s`,
+                animationDelay: `${conf.delay}s`
               }}
-            />
+            ></div>
           ))}
-          
-          {/* Celebration message */}
           <div className="celebration-message">
-            <h2>🎉 All Tasks Complete! 🎉</h2>
-            <p>Congratulations! You've completed all tasks on your board.</p>
-            <button onClick={dismissCelebration}>Awesome!</button>
+            <h2>Task Completed! 🎉</h2>
+            <p>Great job moving a task to completion!</p>
+            <button onClick={dismissCelebration}>Continue</button>
           </div>
         </div>
       )}
+
+      {/* Update the mobile class for the project summary widget */}
+      <style jsx>{`
+        @media (max-width: 992px) {
+          .project-summary-widget {
+            transform: translateY(100%);
+          }
+          .project-summary-widget.mobile-open {
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -16,7 +16,6 @@ function App() {
   // This will hold AI-generated workflow improvements from the LLM
   const [aiWorkflowImprovements, setAiWorkflowImprovements] = useState([]);
 
-  const [showAiInsights, setShowAiInsights] = useState(false);
   const [showAiDashboard, setShowAiDashboard] = useState(false);
 
   // Initialize socket connection
@@ -100,6 +99,26 @@ function App() {
               status: "in_progress",
               priority: "medium",
               category: "Frontend"
+            },
+            {
+              id: 3,
+              title: "Research competitor features",
+              description: "Analyze top 5 competitors and document their key features and UX patterns",
+              status: "backlog",
+              priority: "low",
+              category: "Research",
+              deadline: "2025-04-15T00:00:00.000Z",
+              assignee_id: 3,
+              created_by: 1
+            },
+            {
+              id: 4,
+              title: "Plan marketing campaign",
+              description: "Develop strategy for product launch marketing campaign",
+              status: "backlog",
+              priority: "medium",
+              category: "Marketing",
+              created_by: 1
             }
           ]);
         }
@@ -354,28 +373,25 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>AI-Enabled Kanban Board</h1>
+        <div className="logo-container">
+          <h1>KanB.ai</h1>
+          <span className="logo-subtitle">AI-Powered Kanban Board</span>
+        </div>
         <div className="header-actions">
           <button
-            className="btn-primary"
+            className="btn-primary add-task-btn"
             onClick={() => {
               setTaskToEdit(null);
               setShowTaskModal(true);
             }}
           >
-            Create Task
+            Add Task
           </button>
           <button
             className="btn-secondary ai-dashboard-btn"
             onClick={() => setShowAiDashboard(!showAiDashboard)}
           >
             {showAiDashboard ? 'Hide AI Dashboard' : 'Show AI Dashboard'}
-          </button>
-          <button
-            className="btn-secondary ai-insights-btn"
-            onClick={() => setShowAiInsights(!showAiInsights)}
-          >
-            {showAiInsights ? 'Hide AI Insights' : 'Show AI Insights'}
           </button>
         </div>
       </header>
@@ -393,9 +409,7 @@ function App() {
           onStatusChange={handleStatusChange}
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}
-          showAiInsights={showAiInsights}
           aiWorkflowImprovements={aiWorkflowImprovements}
-          onToggleInsights={() => setShowAiInsights(!showAiInsights)}
         />
 
         {showTaskModal && (

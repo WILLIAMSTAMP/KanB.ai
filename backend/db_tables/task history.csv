@@ -1,0 +1,10 @@
+Field,Type,Null,Key,Default,Extra
+id,int,NO,PRI,NULL,auto_increment
+task_id,int,YES,MUL,NULL,
+field,varchar(50),YES,,NULL,
+old_value,text,YES,,NULL,
+new_value,text,YES,,NULL,
+changed_by,int,YES,MUL,NULL,
+change_type,"enum('create','update','delete')",YES,,NULL,
+created_at,datetime,YES,,CURRENT_TIMESTAMP,DEFAULT_GENERATED
+updated_at,datetime,YES,,NULL,"on update CURRENT_TIMESTAMP"

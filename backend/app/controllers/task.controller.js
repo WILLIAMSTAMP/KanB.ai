@@ -17,6 +17,9 @@ const fs = require('fs');
  */
 exports.create = async (req, res) => {
   try {
+    console.log('Task creation request received:', req.body);
+    console.log('Files attached:', req.files);
+    
     // Validate request
     if (!req.body.title) {
       return res.status(400).json({
@@ -41,7 +44,7 @@ exports.create = async (req, res) => {
     const taskData = {
       title: req.body.title,
       description: req.body.description || null,
-      status: req.body.status || 'todo',
+      status: req.body.status || 'backlog',
       priority: req.body.priority || 'medium',
       category: req.body.category || null,
       deadline: req.body.deadline || null,
@@ -56,8 +59,11 @@ exports.create = async (req, res) => {
       file_attachments: fileAttachments
     };
 
+    console.log('Attempting to create task with data:', taskData);
+
     // Save Task in the database
     const task = await Task.create(taskData);
+    console.log('Task created successfully:', task.id);
     
     // Record task creation in history
     await TaskHistory.create({
@@ -151,6 +157,13 @@ exports.findAll = async (req, res) => {
         }
       ],
       order: [
+        [db.sequelize.literal(`CASE 
+          WHEN priority = 'critical' THEN 1 
+          WHEN priority = 'high' THEN 2 
+          WHEN priority = 'medium' THEN 3 
+          WHEN priority = 'low' THEN 4 
+          ELSE 5 
+        END`)],
         ['updated_at', 'DESC']
       ]
     });
@@ -245,6 +258,13 @@ exports.getFiltered = async (req, res) => {
         }
       ],
       order: [
+        [db.sequelize.literal(`CASE 
+          WHEN priority = 'critical' THEN 1 
+          WHEN priority = 'high' THEN 2 
+          WHEN priority = 'medium' THEN 3 
+          WHEN priority = 'low' THEN 4 
+          ELSE 5 
+        END`)],
         ['updated_at', 'DESC']
       ]
     });
@@ -479,6 +499,8 @@ exports.updateStatus = async (req, res) => {
  * @param {Object} res - Response object
  */
 exports.delete = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  
   try {
     const id = req.params.id;
 
@@ -486,23 +508,17 @@ exports.delete = async (req, res) => {
     const task = await Task.findByPk(id);
 
     if (!task) {
+      await transaction.rollback();
       return res.status(404).json({
         message: `Task with id=${id} not found`
       });
     }
 
-    // Delete the task
-    await task.destroy();
-
-    // Record in history
-    await TaskHistory.create({
-      task_id: id,
-      field: 'status',
-      old_value: task.status,
-      new_value: 'deleted',
-      changed_by: req.user?.id || 1,
-      change_type: 'delete'
-    });
+    // Delete the task (TaskHistory will be deleted via CASCADE)
+    await task.destroy({ transaction });
+    
+    // Commit the transaction
+    await transaction.commit();
 
     // Emit socket event for real-time updates
     const io = req.app.get('io');
@@ -515,6 +531,9 @@ exports.delete = async (req, res) => {
       id
     });
   } catch (error) {
+    // Rollback the transaction on error
+    await transaction.rollback();
+    
     console.error(`Error deleting task with id=${req.params.id}:`, error);
     res.status(500).json({
       message: `Error deleting task with id=${req.params.id}`,

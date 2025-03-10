@@ -6,7 +6,7 @@ import './TaskCard.css';
  * Displays an individual task with its details
  * Drag and drop functionality is handled by react-beautiful-dnd in the parent component
  */
-const TaskCard = ({ task, onEdit, onDelete }) => {
+const TaskCard = ({ task, onEdit, onDelete, isDragging }) => {
   // Format date to be more readable
   const formatDate = (dateString) => {
     if (!dateString) return 'No deadline';
@@ -62,7 +62,10 @@ const TaskCard = ({ task, onEdit, onDelete }) => {
   };
 
   return (
-    <div className={`task-card ${task.priority?.toLowerCase()}`}>
+    <div 
+      className={`task-card ${task.priority || ''} ${isDragging ? 'is-dragging' : ''}`}
+      style={{ borderLeftColor: getPriorityColor(task.priority) }}
+    >
       {/* Show AI suggestion indicator if task has recommendations */}
       {task.ai_recommendation && (
         <div
@@ -92,19 +95,25 @@ const TaskCard = ({ task, onEdit, onDelete }) => {
       )}
       
       <div className="task-meta">
+        {/* Category, Assignee, and Due Date moved to the bottom */}
         {task.category && (
-          <span className="task-category">{task.category}</span>
-        )}
-      </div>
-      
-      <div className="task-footer">
-        {task.assignee && (
-          <div className="task-assignee">
-            <span className="meta-label">Assignee:</span>
-            <span className="assignee-name">{task.assignee.name}</span>
+          <div className="task-category-container">
+            <span className="meta-label">Category:</span>
+            <span className="task-category">{task.category}</span>
           </div>
         )}
         
+        {/* Stacked assignee field */}
+        {task.assignee && (
+          <div className="task-assignee">
+            <span className="meta-label">Assignee:</span>
+            <span className="assignee-name">
+              {typeof task.assignee === 'object' ? task.assignee.name : task.assignee}
+            </span>
+          </div>
+        )}
+        
+        {/* Stacked due date field */}
         <div className="task-deadline-container">
           <span className="meta-label">Due:</span>
           {getDeadlineDisplay()}
